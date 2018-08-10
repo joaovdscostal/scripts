@@ -2,47 +2,40 @@
 
 
 if [ $# -lt 1 ]; then
-   echo "Faltou você escolher os projetos para fazer o pull"
-   exit 1
+	echo -e "\033[0;31mFaltou você escolher os projetos para fazer o pull\033[0m"
+	exit 1
 fi
 
-echo Voce escolheu baixar os projetos $*
+echo "Voce escolheu baixar os projetos $*"
 
-echo "Qual remoto deseja utilizar: (se vazio: origin)"; read remoto
+echo -e "Qual remoto deseja utilizar: \033[1;37m(se vazio: origin)\033[0m"; read remoto
+
+echo -e "Qual branch deseja utilizar: \033[1;37m(se vazio: master)\033[0m"; read branch
+
+if [ -z $remoto ]; then
+	remoto='origin';
+fi
+
+if [ -z $branch ]; then
+	branch='master';
+fi
 
 for FUNCAO in $*; do
-    if [ -d $FUNCAO/.git ];
-    then
-        echo "##### Baixando projeto: $FUNCAO #####";
-        
+	
+	FUNCAO="${FUNCAO////}"
+	echo -e "\033[1;34mBaixando projeto: $FUNCAO\033[0m";
 
-        if [ -z $remoto ];
-        then
-            remoto='origin';
-        fi
+	if [ -d $FUNCAO/.git ];
+	then
 
-        cd $FUNCAO
-        git pull $remoto master
-        
-        echo "##### Download do projeto $FUNCAO terminado #####";
-        echo
-        cd ..
-    fi
+		cd /Workspace/$FUNCAO
+
+		git pull $remoto $branch
+		
+		echo
+		cd ..
+
+	else
+		echo -e "\033[0;31mISSO NÃO É UM PROJETO GIT\033[0m";
+	fi
 done
-
-
-
-#for DIR in `ls`;
-#do
-#    if [ -d $DIR/.git ];
-#    then
-#            echo "updating location: " $DIR;
-#            cd $DIR
-            # your commands here...
-            #git add -u 
-            #git add .
-            #git commit -m 'Latest'
-
-#            cd ..
-#    fi
-#done

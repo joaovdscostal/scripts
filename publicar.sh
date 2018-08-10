@@ -1,29 +1,31 @@
 #!/bin/bash
 
 if [ $# -lt 1 ]; then
-	echo "Faltou você escolher os projetos para publicar"
+	echo -e "\033[0;31mFaltou você escolher os projetos para publicar\033[0m"
 	exit 1
 fi
 
-echo Voce escolheu publicar os projetos $*
+echo "Voce escolheu publicar os projetos $*"
 
-echo "Qual remoto deseja utilizar : (se vazio: origin)"; read remoto
+echo -e "Qual remoto deseja utilizar: \033[1;37m(se vazio: origin)\033[0m"; read remoto
+
+echo -e "Qual branch deseja utilizar: \033[1;37m(se vazio: master)\033[0m"; read branch
 
 if [ -z $remoto ]; then
 	remoto='origin';
 fi
-
-echo "Qual branch deseja enviar : (se vazio: master)"; read branch
 
 if [ -z $branch ]; then
 	branch='master';
 fi
 
 for FUNCAO in $*; do
+	FUNCAO="${FUNCAO////}"
+	echo -e "\033[1;34mPublicando projeto: $FUNCAO\033[0m";
+
 	if [ -d $FUNCAO/.git ]; then
-		echo "##### Publicando projeto: $FUNCAO #####";
-	 
-		if [ $FUNCAO != "base" ] && ( [ $remoto = "producao" ] || [ $remoto = "homologacao" ] || [ $remoto = "teste" ] ); then
+
+		if [ $FUNCAO != "base" ] && ( [ $remoto = "producao" ] || [ $remoto = "homologacao" ] || [ $remoto = "teste" ] || [ $remoto = "teste-remoto" ] ); then
 			
 			cd /Workspace/publicacao/$FUNCAO
 
@@ -38,17 +40,16 @@ for FUNCAO in $*; do
 			git commit -a -m "envio para $remoto - $HOJE"
 			
 			git push -f $remoto $branch:master 
+
 		else
-			echo "##### OPCAO INVALIDA PARA SERVIDOR #####";
+			echo -e "\033[0;31mOPCAO INVALIDA PARA SERVIDOR\033[0m";
 		fi
 			
-		echo "##### Envio do projeto $FUNCAO terminado #####";
 		echo
 		cd ..
 
 	else
-		echo "##### ISSO NÃO É UM PROJETO GIT#####";
+		echo -e "\033[0;31mISSO NÃO É UM PROJETO GIT\033[0m";
 	fi
 	
 done
-
