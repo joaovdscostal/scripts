@@ -21,7 +21,7 @@ for FUNCAO in $*; do
 			exit 1
 		fi
 
-		cd /Workspace/$FUNCAO
+		cd /Users/nds/Workspace/$FUNCAO
 
 		branchatual=$(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
 

@@ -15,7 +15,7 @@ for FUNCAO in $*; do
         echo "##### Checkout projeto: $FUNCAO #####";
         echo "Qual parametro deseja utilizar para o projeto $FUNCAO: "; read mensagem
 
-        cd /Users/nds/Workspace/publicacao/$FUNCAO
+        cd /Users/nds/Workspace/$FUNCAO
         git checkout $mensagem
         
         echo "##### Checkout do projeto $FUNCAO terminado #####";
