@@ -16,7 +16,7 @@ fi
 for FUNCAO in $*; do
 	if [ -d $FUNCAO/.git ]; then
 		
-		cd /Workspace/$FUNCAO
+		cd /Users/nds/Workspace/$FUNCAO
 		
 		if [ ` git branch --list $branch ` ]
 		then

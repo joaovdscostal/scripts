@@ -25,7 +25,7 @@ for FUNCAO in $*; do
 	 
 		if [ $FUNCAO != "base" ] && ( [ $remoto = "producao" ] || [ $remoto = "homologacao" ] || [ $remoto = "teste" ] ); then
 			
-			cd /Workspace/publicacao/$FUNCAO
+			cd /Users/nds/Workspace/publicacao/$FUNCAO
 
 			ADEHOJE=$(date +"%d")
 			MES=$(date +"%m")

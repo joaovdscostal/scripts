@@ -18,8 +18,8 @@ echo "Qual endereço do remoto $remoto :"; read endereco
 
 
 for FUNCAO in $*; do
-	if [ -d /Workspace/publicacao/$FUNCAO/.git ]; then
-		cd /Workspace/publicacao/$FUNCAO
+	if [ -d /Users/nds/Workspace/publicacao/$FUNCAO/.git ]; then
+		cd /Users/nds/Workspace/publicacao/$FUNCAO
 
 		git remote add $remoto $endereco
 

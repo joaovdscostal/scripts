@@ -12,26 +12,37 @@ for FUNCAO in $*; do
 
 		echo "##### Compilando projeto: $FUNCAO #####";
 
-		cd /Workspace/$FUNCAO
+		cd /Users/nds/Workspace/publicacao/$FUNCAO
 
-		if [ -d "target/" ]; then
-			rm -rf target/
-		fi
+		if [ -d "/Workspace/$FUNCAO/EarContent" ]; then
+			echo "Existe a pasta EAR conteent"
+		else
+			if [ -d "target/" ]; then
+				rm -rf target/
+			fi
 
 		
-		sed -i.bak 's/including=\"\*\*\/\*.java\"//g' .classpath
-		rm .classpath.bak   
+			sed -i.bak 's/including=\"\*\*\/\*.java\"//g' .classpath
+			rm .classpath.bak   
 
-		mvn clean install -U
+			mvn clean install -U
 
 
-		if [ ! -d "/Workspace/publicacao/$FUNCAO" ]; then
-			mkdir -p /Workspace/publicacao/$FUNCAO
+			if [ ! -d "/Users/nds/Workspace/publicacao/$FUNCAO" ]; then
+				mkdir -p /Users/nds/Workspace/publicacao/$FUNCAO
+			fi
+
+			
+
+			rsync -ahr --delete --stats --exclude '.git/' target/$FUNCAO-1.0/ /Users/nds/Workspace/publicacao/$FUNCAO
 		fi
 
-		rsync -ahr --delete --stats --exclude '.git/' target/$FUNCAO-1.0/ /Workspace/publicacao/$FUNCAO
 
-		echo "##### TERMINOU DE COMPILAR#####";
+
+
+		
+
+		#echo "##### TERMINOU DE COMPILAR#####";
 	else
 		echo "##### ISSO NÃO É UM PROJETO GIT#####";
 	fi

@@ -14,7 +14,7 @@ for FUNCAO in $*; do
 
     if [ -d $FUNCAO/.git ];
     then
-        cd /Workspace/$FUNCAO
+        cd /Users/nds/Workspace/publicacao/$FUNCAO
 
         branchatual=$(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
      
