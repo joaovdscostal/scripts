@@ -35,7 +35,11 @@ for FUNCAO in $*; do
 				mkdir -p /Users/nds/Workspace/publicacao/$FUNCAO
 			fi
 
-			
+			if [ $FUNCAO == "gerenciadordecursoonline" ]
+			then
+			    echo "Gerenciador sim"
+			    cp WebContent/WEB-INF/lib/vraptor-datatables-1.1-SNAPSHOT.jar target/gerenciadordecursoonline-1.0/WEB-INF/lib/vraptor-datatables-1.1-SNAPSHOT.jar
+			fi
 
 			rsync -ahr --delete --stats --exclude '.git/' target/$FUNCAO-1.0/ /Users/nds/Workspace/publicacao/$FUNCAO
 		fi
