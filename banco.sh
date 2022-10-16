@@ -58,45 +58,40 @@ then
     exit 1
 fi
 
-if [ $origem != "producao" ] && [ $origem != "homologacao" ] && [ $origem != "localhost" ]; then
-    echo "Origem inválida! Permitida: producao, homologacao ou localhost"
+if [ $origem != "producao" ] && [ $origem != "jhonata" ] && [ $origem != "localhost" ]; then
+    echo "Origem inválida! Permitida: producao, jhonata ou localhost"
     exit 1
 fi
 
-if  [ $destino != "homologacao" ] && [ $destino != "localhost" ]; then
-    echo "Destino inválido! Permitida: homologacao ou localhost"
+if  [ $destino != "localhost" ]; then
+    echo "Destino inválido! Permitida: localhost"
     exit 1
 fi
 
 if [ $origem == "localhost" ]; then
     servidororigem='localhost'
-    usuarioorigem='redentor_nds'
+    usuarioorigem='root'
     senhaorigem='mysql'
 fi
 
 if [ $destino == "localhost" ]; then
     servidordestino='localhost'
-    usuariodestino='redentor_nds'
+    usuariodestino='root'
     senhadestino='mysql'
 fi
 
 if [ $origem == "producao" ]; then
-    servidororigem='70.38.37.101'
-    usuarioorigem='redentor_nds'
-    senhaorigem='v8L1T4Ljeo'
+    servidororigem='157.230.231.220'
+    usuarioorigem='root'
+    senhaorigem='MuTk9xL2W9v'
 fi
 
-if [ $origem == "homologacao" ]; then
-    servidororigem='127.0.0.1'
-    usuarioorigem='redentor_nds'
-    senhaorigem='mysql'
+if [ $origem == "jhonata" ]; then
+    servidororigem='192.241.133.126'
+    usuarioorigem='root'
+    senhaorigem='J4M38n2p4bjk'
 fi
 
-if [ $destino == "homologacao" ]; then
-    servidordestino='127.0.0.1'
-    usuariodestino='redentor_nds'
-    senhadestino='mysql'
-fi
 
 
 #echo "Voce escolheu copiar de $origem deseja utilizar o mesmo servidor que é $servidororigem. Deseja alterar? Senão, só deixar vazio:"; 
@@ -149,8 +144,9 @@ fi
 #fi
 
 
-mysqldump=/usr/local/mysql/bin/mysqldump
-mysql=/usr/local/mysql/bin/mysql
+mysqldump=/usr/local/opt/mysql@5.6/bin/mysqldump
+mysql=/usr/local/opt/mysql@5.6/bin/mysql
+arquivosql=/Users/nds/Workspace/dados/origem.sql
 
 if [ $origem == "homologacao" ] || [ $destino == "homologacao" ]; then
     ps aux | grep -ie ssh | awk '{print $2}' | xargs kill -9 > /dev/null
@@ -166,22 +162,16 @@ if [ $origem == "homologacao" ]; then
     portaorigem="-P 59076"
 fi
 
-rm -rf dados/origem.sql
+rm -rf $arquivosql
 
-echo "Iniciando processo de dump da origem comando: $mysqldump $portaorigem -h $servidororigem -u $usuarioorigem -p$senhaorigem $basededadosorigem > dados/origem.sql 
+echo "Iniciando processo de dump da origem comando: $mysqldump $portaorigem -h $servidororigem -u $usuarioorigem -p$senhaorigem $basededadosorigem > $arquivosql 
  "
-$mysqldump $portaorigem -h $servidororigem -u $usuarioorigem -p$senhaorigem $basededadosorigem > dados/origem.sql 
+$mysqldump $portaorigem -h $servidororigem -u $usuarioorigem -p$senhaorigem $basededadosorigem > $arquivosql 
 echo "Terminou processo de dump da origem"
 
-echo "Iniciando processo de restauracao no destino com comando $mysql $portadestino -h $servidordestino -u $usuariodestino -p$senhadestino $basededadosdestino < dados/origem.sql wh"
-$mysql $portadestino -h $servidordestino -u $usuariodestino -p$senhadestino $basededadosdestino < dados/origem.sql 
+echo "Iniciando processo de restauracao no destino com comando $mysql $portadestino -h $servidordestino -u $usuariodestino -p$senhadestino $basededadosdestino < $arquivosql wh"
+$mysql $portadestino -h $servidordestino -u $usuariodestino -p$senhadestino $basededadosdestino < $arquivosql 
 echo "Terminou processo de restauracao no destino"
-
-
-
-
-
-
 
 echo "ACABOU - AEEEEE"
 

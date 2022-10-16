@@ -38,8 +38,10 @@ for FUNCAO in $*; do
 
 			git add .
 			git commit -a -m "envio para $remoto - $HOJE"
+
+			echo -e "\033[0;31mPublicando no remoto $remoto e na branch $branch\033[0m";
 			
-			git push -f $remoto $branch:master 
+			git push -f $remoto $branch
 
 		else
 			echo -e "\033[0;31mOPCAO INVALIDA PARA SERVIDOR\033[0m";

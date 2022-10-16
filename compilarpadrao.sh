@@ -15,7 +15,7 @@ for FUNCAO in $*; do
 	if [ -d $FUNCAO/.git ]; then
 		
 
-		cd /Users/nds/Workspace/sts/$FUNCAO
+		cd /Users/nds/Workspace/$FUNCAO
 
 		if [ -d "/Users/nds/Workspace/$FUNCAO/EarContent" ]; then
 			echo "Existe a pasta EAR conteent"
