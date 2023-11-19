@@ -8,8 +8,8 @@ if [ $# -eq 1 ] && [ $1 == "--help" ]; then
     echo "Parametros"
     echo "-basededadosdestino    Nome do banco de dados destino!"
     echo "-basededadosorigem     Nome do banco de dados origem!"
-    echo "-origem                Base origem (localhost, producao, ou homologacao)!"
-    echo "-destino               Base destino (localhost, homologacao)"
+    echo "-origem                Base origem (localhost, producao, poker, tv, jhonata ou homologacao)!"
+    echo "-destino               Base destino (localhost, localhost-mariadb)"
     exit 1
 fi
 
@@ -58,13 +58,13 @@ then
     exit 1
 fi
 
-if [ $origem != "producao" ] && [ $origem != "jhonata" ] && [ $origem != "localhost" ]; then
-    echo "Origem inválida! Permitida: producao, jhonata ou localhost"
+if [ $origem != "producao" ]  && [ $origem != "poker" ]  && [ $origem != "jhonata" ] && [ $origem != "localhost" ] && [ $origem != "tv" ]; then
+    echo "Origem inválida! Permitida: producao, jhonata, poker, tv ou localhost"
     exit 1
 fi
 
-if  [ $destino != "localhost" ]; then
-    echo "Destino inválido! Permitida: localhost"
+if  [ $destino != "localhost" ] && [ $destino != "localhost-mariadb" ]; then 
+    echo "Destino inválido! Permitida: localhost ou localhost-mariadb"
     exit 1
 fi
 
@@ -80,8 +80,20 @@ if [ $destino == "localhost" ]; then
     senhadestino='mysql'
 fi
 
+if [ $destino == "localhost-mariadb" ]; then
+    servidordestino='localhost'
+    usuariodestino='root'
+    senhadestino='mysql'
+fi
+
 if [ $origem == "producao" ]; then
     servidororigem='157.230.231.220'
+    usuarioorigem='root'
+    senhaorigem='MuTk9xL2W9v'
+fi
+
+if [ $origem == "poker" ]; then
+    servidororigem='191.252.196.239'
     usuarioorigem='root'
     senhaorigem='MuTk9xL2W9v'
 fi
@@ -90,6 +102,12 @@ if [ $origem == "jhonata" ]; then
     servidororigem='192.241.133.126'
     usuarioorigem='root'
     senhaorigem='J4M38n2p4bjk'
+fi
+
+if [ $origem == "tv" ]; then
+    servidororigem='137.184.69.82'
+    usuarioorigem='admin'
+    senhaorigem='AVNS_gBbXFCyFMp6Jrfv8j5a'
 fi
 
 
@@ -148,19 +166,12 @@ mysqldump=/usr/local/opt/mysql@5.6/bin/mysqldump
 mysql=/usr/local/opt/mysql@5.6/bin/mysql
 arquivosql=/Users/nds/Workspace/dados/origem.sql
 
-if [ $origem == "homologacao" ] || [ $destino == "homologacao" ]; then
-    ps aux | grep -ie ssh | awk '{print $2}' | xargs kill -9 > /dev/null
-    echo "Executando comando: /usr/bin/ssh -v -N -o ControlMaster=no -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -o NumberOfPasswordPrompts=3 -o TCPKeepAlive=no -o ServerAliveInterval=60 -o ServerAliveCountMax=1 redentor@25.72.118.215 -L 59076:10.0.1.111:3306 &> /dev/null"
-    /usr/bin/ssh -v -N -o  ControlMaster=no -o ExitOnForwardFailure=yes -o ConnectTimeout=10 -o NumberOfPasswordPrompts=3 -o TCPKeepAlive=no -o ServerAliveInterval=60 -o ServerAliveCountMax=1 redentor@25.72.118.215 -L 59076:10.0.1.111:3306 -f
+if [ $destino == "localhost-mariadb" ]; then
+    portadestino="-P 3310"
+    mysqldump=/usr/local/opt/mariadb@10.10/bin/mysqldump
+    mysql=/usr/local/opt/mariadb@10.10/bin/mysql
 fi
 
-if [ $destino == "homologacao" ]; then
-    portadestino="-P 59076"
-fi
-
-if [ $origem == "homologacao" ]; then
-    portaorigem="-P 59076"
-fi
 
 rm -rf $arquivosql
 

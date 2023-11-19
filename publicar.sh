@@ -25,7 +25,7 @@ for FUNCAO in $*; do
 
 	if [ -d $FUNCAO/.git ]; then
 
-		if [ $FUNCAO != "base" ] && ( [ $remoto = "producao" ] || [ $remoto = "homologacao" ] || [ $remoto = "teste" ] || [ $remoto = "teste-remoto" ] ); then
+		if [ $FUNCAO != "base" ] && ( [ $remoto = "producao" ] || [ $remoto = "servidorpoker" ] || [ $remoto = "homologacao" ] || [ $remoto = "teste" ] || [ $remoto = "teste-remoto" ] ); then
 			
 			cd /Users/nds/Workspace/publicacao/$FUNCAO
 
