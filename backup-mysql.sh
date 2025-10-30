@@ -6,10 +6,8 @@ fi
 
 if [ $# -eq 1 ] && [ $1 == "--help" ]; then
     echo "Parametros"
-    echo "-basededadosdestino    Nome do banco de dados destino!"
     echo "-basededadosorigem     Nome do banco de dados origem!"
-    echo "-origem                Base origem (bu)!"
-    echo "-destino               Base destino (bu-homologacao)"
+    echo "-origem                Base origem (producao, poker, jhonata, testes, localhost)!"
     exit 1
 fi
 
@@ -19,20 +17,12 @@ do
 key="$1"
 
 case $key in
-    -basededadosdestino)
-    basededadosdestino="$2"
-    shift # past argument
-    ;;
     -basededadosorigem)
     basededadosorigem="$2"
     shift # past argument
     ;;
     -origem)
     origem="$2"
-    shift # past argument
-    ;;
-    -destino)
-    destino="$2"
     shift # past argument
     ;;
     
@@ -46,56 +36,80 @@ done
 echo "Iniciou processo de execucao de importacao de banco de dados!"
 
 
-if [ -z $basededadosdestino ];
-then
-    echo "Por favor digite a base de dados destino."
-    exit 1
-fi
-
 if [ -z $basededadosorigem ];
 then
     echo "Por favor digite a base de dados origem."
     exit 1
 fi
 
-if [ $origem != "bu" ]; then
-    echo "Origem inválida! Permitida: bu"
+if [ $origem != "producao" ]  && [ $origem != "poker" ]  && [ $origem != "jhonata" ] && 
+    [ $origem != "formeseguro" ] &&
+ [ $origem != "localhost" ] && [ $origem != "testes" ] &&  [ $origem != "servidor-cidadania" ]; then
+    echo "Origem inválida! Permitida: producao, jhonata, poker, formeseguro, testes, servidor-cidadania ou localhost"
     exit 1
 fi
 
-if [ $destino != "bu-homologacao" ]; then
-    echo "Destino inválid0! Permitida: bu-homologacao"
-    exit 1
-fi
 
-if [ $origem == "bu" ]; then
-    servidororigem='dbmysg.ca6icfds8q4p.us-east-1.rds.amazonaws.com'
+
+if [ $origem == "localhost" ]; then
+    servidororigem='localhost'
     usuarioorigem='root'
-    senhaorigem='SGMyDb.3427#'
+    senhaorigem='mysql'
 fi
 
-if [ $destino == "bu-homologacao" ]; then
-    servidordestino='dbmysg-homologacao.ca6icfds8q4p.us-east-1.rds.amazonaws.com'
-    usuariodestino='root'
-    senhadestino='SGMyDb.3427#'
+if [ $origem == "producao" ]; then
+    servidororigem='157.230.231.220'
+    usuarioorigem='root'
+    senhaorigem='MuTk9xL2W9v'
 fi
 
 
-mysqldump=/usr/local/opt/mysql@5.6/bin/mysqldump
-mysql=/usr/local/opt/mysql@5.6/bin/mysql
-arquivosql=/Users/nds/Workspace/dados/origem-refresh.sql
+if [ $origem == "testes" ]; then
+    servidororigem='164.90.147.61'
+    usuarioorigem='root'
+    senhaorigem='MuTk9xL2W9v'
+fi
+
+if [ $origem == "poker" ]; then
+    servidororigem='191.252.196.239'
+    usuarioorigem='root'
+    senhaorigem='MuTk9xL2W9v'
+fi
+
+if [ $origem == "jhonata" ]; then
+    servidororigem='192.241.133.126'
+    usuarioorigem='root'
+    senhaorigem='J4M38n2p4bjk'
+fi
+
+if [ $origem == "servidor-cidadania" ]; then
+    servidororigem='142.93.127.120'
+    usuarioorigem='root'
+    senhaorigem='MuTk9xL2W9v'
+fi
+
+if [ $origem == "formeseguro" ]; then
+    servidororigem='35.222.5.173'
+    usuarioorigem='formeseguro'
+    senhaorigem='sr8x-vGzSeg'
+fi
+
+
+
+#mysqldump=/usr/local/opt/mysql@5.6/bin/mysqldump
+#mysql=/usr/local/opt/mysql@5.6/bin/mysql
+mysqldump=/opt/homebrew/opt/mysql@8.1/bin/mysqldump
+mysql=/opt/homebrew/opt/mysql@8.1/bin/mysql
+
+arquivosql=/Users/nds/Workspace/dados/backup$basededadosorigem.sql
 logFile=/home/ubuntu/backup/dados/log.txt
 
 
 #rm -rf $arquivosql
 
-#echo "Iniciando processo de dump da origem comando: $mysqldump $portaorigem -h $servidororigem -u $usuarioorigem -p$senhaorigem $basededadosorigem > $arquivosql "
-#$mysqldump $portaorigem -h $servidororigem -u $usuarioorigem -p$senhaorigem --no-tablespaces --set-gtid-purged=OFF --databases $basededadosorigem > $arquivosql 
-#echo "Terminou processo de dump da origem"
-
-echo "Iniciando processo de restauracao no destino com comando $mysql $portadestino -h $servidordestino -u $usuariodestino -p$senhadestino $basededadosdestino < $arquivosql " >> $logFile
-$mysql $portadestino -h $servidordestino -u $usuariodestino -p$senhadestino $basededadosdestino < $arquivosql  >> $logFile
-echo "Terminou processo de restauracao no destino" >> $logFile
+echo "Iniciando processo de dump da origem comando: $mysqldump $portaorigem -h $servidororigem -u $usuarioorigem -p$senhaorigem $basededadosorigem > $arquivosql "
+$mysqldump $portaorigem -h $servidororigem -u $usuarioorigem -p$senhaorigem --no-tablespaces --set-gtid-purged=OFF --databases $basededadosorigem > $arquivosql 
+echo "Terminou processo de dump da origem"
 
 echo "ACABOU - AEEEEE"
 

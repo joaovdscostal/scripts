@@ -8,7 +8,7 @@ if [ $# -eq 1 ] && [ $1 == "--help" ]; then
     echo "Parametros"
     echo "-basededadosdestino    Nome do banco de dados destino!"
     echo "-basededadosorigem     Nome do banco de dados origem!"
-    echo "-origem                Base origem (localhost, producao, poker, tv, jhonata ou homologacao)!"
+    echo "-origem                Base origem (localhost, producao, poker, jhonata ou homologacao, servidor-cidadania, testes)!"
     echo "-destino               Base destino (localhost, localhost-mariadb)"
     exit 1
 fi
@@ -58,12 +58,12 @@ then
     exit 1
 fi
 
-if [ $origem != "producao" ]  && [ $origem != "poker" ]  && [ $origem != "jhonata" ] && [ $origem != "localhost" ] && [ $origem != "tv" ]; then
-    echo "Origem inválida! Permitida: producao, jhonata, poker, tv ou localhost"
+if [ $origem != "producao" ]  && [ $origem != "poker" ]  && [ $origem != "jhonata" ] && [ $origem != "localhost" ] && [ $origem != "servidor-cidadania" ] && [ $origem != "testes" ]; then
+    echo "Origem inválida! Permitida: producao, jhonata, poker, servidor-cidadania, testes ou localhost"
     exit 1
 fi
 
-if  [ $destino != "localhost" ] && [ $destino != "localhost-mariadb" ]; then 
+if  [ $destino != "localhost" ] && [ $destino != "localhost-mariadb" ] && [ $destino != "localhost-5" ]; then 
     echo "Destino inválido! Permitida: localhost ou localhost-mariadb"
     exit 1
 fi
@@ -98,17 +98,24 @@ if [ $origem == "poker" ]; then
     senhaorigem='MuTk9xL2W9v'
 fi
 
+if [ $origem == "servidor-cidadania" ]; then
+    servidororigem='142.93.127.120'
+    usuarioorigem='root'
+    senhaorigem='MuTk9xL2W9v'
+fi
+
 if [ $origem == "jhonata" ]; then
-    servidororigem='192.241.133.126'
+    servidororigem='164.92.87.24'
     usuarioorigem='root'
     senhaorigem='J4M38n2p4bjk'
 fi
 
-if [ $origem == "tv" ]; then
-    servidororigem='137.184.69.82'
-    usuarioorigem='admin'
-    senhaorigem='AVNS_gBbXFCyFMp6Jrfv8j5a'
+if [ $origem == "testes" ]; then
+    servidororigem='147.93.66.129'
+    usuarioorigem='root'
+    senhaorigem='MuTk9xL2W9v'
 fi
+
 
 
 
@@ -162,8 +169,12 @@ fi
 #fi
 
 
-mysqldump=/usr/local/opt/mysql@5.6/bin/mysqldump
-mysql=/usr/local/opt/mysql@5.6/bin/mysql
+#mysqldump=/usr/local/opt/mysql@5.6/bin/mysqldump
+#mysql=/usr/local/opt/mysql@5.6/bin/mysql
+
+mysqldump=/opt/homebrew/opt/mysql@8.0/bin/mysqldump
+mysql=/opt/homebrew/opt/mysql@8.0/bin/mysql
+
 arquivosql=/Users/nds/Workspace/dados/origem.sql
 
 if [ $destino == "localhost-mariadb" ]; then
@@ -171,6 +182,15 @@ if [ $destino == "localhost-mariadb" ]; then
     mysqldump=/usr/local/opt/mariadb@10.10/bin/mysqldump
     mysql=/usr/local/opt/mariadb@10.10/bin/mysql
 fi
+
+
+if [ $destino == "localhost-5" ]; then
+    servidordestino='localhost'
+    usuariodestino='root'
+    senhadestino='mysql'
+     portadestino="-P 3307"
+fi
+
 
 
 rm -rf $arquivosql
