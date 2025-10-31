@@ -959,10 +959,12 @@ if [ "$S3_BACKUP" = true ]; then
                 log_info "Limpando backups antigos no S3 (mantendo últimos ${S3_RETENTION_COUNT} dias, 1 por dia)..."
 
                 # Listar todos os arquivos (apenas nomes, ordenados por nome - mais recentes primeiro)
-                # Temporariamente desabilitar exit on error para o grep (que retorna 1 se não encontrar nada)
+                # Temporariamente desabilitar exit on error e pipefail (grep retorna 1 quando não encontra nada)
                 set +e
+                set +o pipefail
                 S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_PATH}/" 2>/dev/null | grep "^backup-vps-" | sort -r)
                 set -e
+                set -o pipefail
 
                 if [ -z "$S3_BACKUPS" ]; then
                     log_info "Nenhum backup encontrado no S3 para limpeza"
