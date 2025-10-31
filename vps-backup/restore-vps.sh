@@ -869,7 +869,11 @@ if [ "$RESTORE_SCRIPTS" = true ] && [ -d "${BACKUP_DIR}/system/scripts" ]; then
 
     mkdir -p "$SCRIPTS_DIR"
     cp -r "${BACKUP_DIR}/system/scripts"/* "$SCRIPTS_DIR/"
-    chmod +x "$SCRIPTS_DIR"/*.sh
+
+    # Tornar scripts .sh executáveis (se existirem)
+    if ls "$SCRIPTS_DIR"/*.sh &> /dev/null; then
+        chmod +x "$SCRIPTS_DIR"/*.sh
+    fi
 
     log_success "Scripts restaurados em: $SCRIPTS_DIR"
 
