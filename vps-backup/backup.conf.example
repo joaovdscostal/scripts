@@ -168,6 +168,10 @@ S3_BACKUP=true
 RCLONE_REMOTE="digitalocean"
 S3_BUCKET="empresa-backups"
 S3_PATH="vps-producao"
+
+# Manter backups de quantos dias no Spaces? (0 = manter todos)
+# Mantém apenas 1 backup por dia (o mais recente) dos últimos X dias
+# Exemplo: 15 = mantém os últimos 15 dias (1 backup por dia = até 15 backups)
 S3_RETENTION_COUNT=15
 
 # ============================================================================

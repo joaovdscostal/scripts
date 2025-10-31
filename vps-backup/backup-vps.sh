@@ -951,33 +951,45 @@ if [ "$S3_BACKUP" = true ]; then
         if rclone copy "$BACKUP_FINAL" "${RCLONE_REMOTE}:${S3_PATH}/" --stats-one-line --stats 60s; then
             log_success "Backup enviado para ${RCLONE_REMOTE}:${S3_PATH}/"
 
-            # Limpar backups antigos no S3
+            # Limpar backups antigos no S3 (mantém apenas 1 por dia dos últimos X dias)
             if [ "$S3_RETENTION_COUNT" -gt 0 ]; then
-                log_info "Limpando backups antigos no S3 (mantendo últimos ${S3_RETENTION_COUNT})..."
+                log_info "Limpando backups antigos no S3 (mantendo últimos ${S3_RETENTION_COUNT} dias, 1 por dia)..."
 
-                # Listar arquivos ordenados por data (mais recentes primeiro)
-                BACKUP_FILES=$(rclone lsf "${RCLONE_REMOTE}:${S3_PATH}/" | sort -r)
+                # Listar todos os arquivos com data de modificação
+                rclone lsl "${RCLONE_REMOTE}:${S3_PATH}/" | grep "backup-vps-" | awk '{print $4}' | sort -r > /tmp/s3_backups.txt
 
-                # Contar arquivos
-                FILE_COUNT=$(echo "$BACKUP_FILES" | wc -l)
+                # Processar cada arquivo (ordenado por nome, mais recentes primeiro)
+                DAYS_KEPT=0
+                declare -A SEEN_DATES
 
-                if [ "$FILE_COUNT" -gt "$S3_RETENTION_COUNT" ]; then
-                    # Calcular quantos arquivos deletar
-                    DELETE_COUNT=$((FILE_COUNT - S3_RETENTION_COUNT))
+                while read -r FILENAME; do
+                    # Extrair data do nome do arquivo (YYYYMMDD)
+                    FILE_DATE=$(echo "$FILENAME" | grep -oP 'backup-vps-\K[0-9]{8}' || echo "")
 
-                    # Pegar os arquivos mais antigos
-                    FILES_TO_DELETE=$(echo "$BACKUP_FILES" | tail -n "$DELETE_COUNT")
+                    if [ -n "$FILE_DATE" ]; then
+                        # Verificar se já vimos esta data
+                        if [ -z "${SEEN_DATES[$FILE_DATE]}" ]; then
+                            # Primeira vez vendo esta data - marcar como mantido
+                            SEEN_DATES[$FILE_DATE]=1
+                            DAYS_KEPT=$((DAYS_KEPT + 1))
+                            log_info "Mantendo backup S3 do dia $FILE_DATE: $FILENAME"
 
-                    # Deletar arquivos
-                    echo "$FILES_TO_DELETE" | while read -r FILE; do
-                        log_info "Deletando do S3: $FILE"
-                        rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILE}"
-                    done
+                            # Se já temos backups suficientes, deletar todos os demais
+                            if [ $DAYS_KEPT -gt $S3_RETENTION_COUNT ]; then
+                                log_info "Deletando do S3 (fora do período): $FILENAME"
+                                rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}"
+                            fi
+                        else
+                            # Backup duplicado do mesmo dia - deletar
+                            log_info "Removendo backup S3 duplicado do dia $FILE_DATE: $FILENAME"
+                            rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}"
+                        fi
+                    fi
+                done < /tmp/s3_backups.txt
 
-                    log_success "Backups antigos removidos do S3"
-                else
-                    log_info "Nenhum backup antigo para remover do S3"
-                fi
+                rm -f /tmp/s3_backups.txt
+
+                log_success "Limpeza de backups S3 concluída"
             fi
         else
             log_error "Erro ao enviar backup para S3"
@@ -986,16 +998,40 @@ if [ "$S3_BACKUP" = true ]; then
 fi
 
 # ============================================================================
-# LIMPEZA DE BACKUPS ANTIGOS
+# LIMPEZA DE BACKUPS LOCAIS ANTIGOS
 # ============================================================================
 
 if [ "$BACKUP_RETENTION_DAYS" -gt 0 ]; then
-    log_info "Limpando backups antigos (>${BACKUP_RETENTION_DAYS} dias)..."
+    log_info "Limpando backups locais (mantendo últimos ${BACKUP_RETENTION_DAYS} dias, 1 por dia)..."
 
-    find "$BACKUP_ROOT" -name "*.tar.gz" -type f -mtime +${BACKUP_RETENTION_DAYS} -delete
-    find "$BACKUP_ROOT" -maxdepth 1 -type d -mtime +${BACKUP_RETENTION_DAYS} -exec rm -rf {} \; 2>/dev/null || true
+    # 1. Deletar backups mais antigos que BACKUP_RETENTION_DAYS
+    find "$BACKUP_ROOT" -maxdepth 1 -name "backup-vps-*.tar.gz" -type f -mtime +${BACKUP_RETENTION_DAYS} -delete
 
-    log_success "Limpeza concluída"
+    # 2. Para cada dia dentro do período de retenção, manter apenas o mais recente
+    # Listar todos os backups restantes com timestamp e caminho
+    find "$BACKUP_ROOT" -maxdepth 1 -name "backup-vps-*.tar.gz" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | while read TIMESTAMP FILEPATH; do
+        # Extrair a data do arquivo (formato YYYYMMDD do nome do arquivo)
+        FILENAME=$(basename "$FILEPATH")
+        FILE_DATE=$(echo "$FILENAME" | grep -oP 'backup-vps-\K[0-9]{8}' || echo "")
+
+        if [ -n "$FILE_DATE" ]; then
+            # Verificar se já processamos esta data
+            if [ ! -f "/tmp/.backup_cleanup_${FILE_DATE}" ]; then
+                # Primeira vez vendo esta data - marcar como mantido
+                touch "/tmp/.backup_cleanup_${FILE_DATE}"
+                log_info "Mantendo backup do dia $FILE_DATE: $(basename "$FILEPATH")"
+            else
+                # Já existe um backup mais recente desta data - deletar este
+                log_info "Removendo backup duplicado do dia $FILE_DATE: $(basename "$FILEPATH")"
+                rm -f "$FILEPATH"
+            fi
+        fi
+    done
+
+    # Limpar arquivos temporários de marcação
+    rm -f /tmp/.backup_cleanup_* 2>/dev/null
+
+    log_success "Limpeza de backups locais concluída"
 fi
 
 # ============================================================================
