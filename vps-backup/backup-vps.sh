@@ -951,8 +951,8 @@ if [ "$S3_BACKUP" = true ]; then
         log_info "Enviando backup para DigitalOcean Spaces via rclone..."
 
         # Upload para S3/Spaces (silencioso)
-        if rclone copy "$BACKUP_FINAL" "${RCLONE_REMOTE}:${S3_PATH}/" --stats-one-line --stats 60s; then
-            log_success "Backup enviado para ${RCLONE_REMOTE}:${S3_PATH}/"
+        if rclone copy "$BACKUP_FINAL" "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" --stats-one-line --stats 60s; then
+            log_success "Backup enviado para ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
 
             # Limpar backups antigos no S3 (mantém apenas 1 por dia dos últimos X dias)
             if [ "$S3_RETENTION_COUNT" -gt 0 ]; then
@@ -962,7 +962,7 @@ if [ "$S3_BACKUP" = true ]; then
                 # Temporariamente desabilitar exit on error e pipefail (grep retorna 1 quando não encontra nada)
                 set +e
                 set +o pipefail
-                S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_BUCKET}/{S3_PATH}/" 2>/dev/null | grep "^backup-vps-" | sort -r)
+                S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" 2>/dev/null | grep "^backup-vps-" | sort -r)
                 set -e
                 set -o pipefail
 
@@ -995,12 +995,12 @@ if [ "$S3_BACKUP" = true ]; then
                                     log_info "Mantendo backup S3 do dia $FILE_DATE: $FILENAME"
                                 else
                                     log_info "Deletando do S3 (fora do período de ${S3_RETENTION_COUNT} dias): $FILENAME"
-                                    rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}" --verbose 2>&1 | head -3
+                                    rclone delete "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/${FILENAME}" --verbose 2>&1 | head -3
                                 fi
                             else
                                 # Backup duplicado do mesmo dia - deletar
                                 log_info "Removendo backup S3 duplicado do dia $FILE_DATE: $FILENAME"
-                                rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}" --verbose 2>&1 | head -3
+                                rclone delete "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/${FILENAME}" --verbose 2>&1 | head -3
                             fi
                         fi
                     done <<< "$S3_BACKUPS"
