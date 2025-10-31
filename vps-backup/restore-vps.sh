@@ -57,22 +57,34 @@ send_whatsapp_notification() {
 # TRATAMENTO DE ERROS
 # ============================================================================
 
+# Variável para armazenar o último comando executado
+LAST_COMMAND=""
+trap 'LAST_COMMAND=$BASH_COMMAND' DEBUG
+
 # Função para lidar com erros
 handle_error() {
     local EXIT_CODE=$?
     local LINE_NUMBER=$1
 
     echo -e "${RED}[ERRO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - Erro na linha ${LINE_NUMBER}: código de saída ${EXIT_CODE}"
+    echo -e "${RED}[ERRO]${NC} Comando que falhou: ${LAST_COMMAND}"
 
     # Enviar notificação de erro via WhatsApp
     ERROR_MESSAGE="⚠️ *Restore VPS FALHOU*
 
 📅 Data: $(date '+%d/%m/%Y %H:%M:%S')
-❌ Erro na linha: ${LINE_NUMBER}
-🔢 Código de saída: ${EXIT_CODE}
+❌ Linha: ${LINE_NUMBER}
+🔢 Código: ${EXIT_CODE}
+
+🔧 Comando:
+\`${LAST_COMMAND}\`
+
 📝 Log: ${RESTORE_LOG:-Não disponível}"
 
-    send_whatsapp_notification "$ERROR_MESSAGE" "error" || true
+    # Garantir que a notificação seja enviada
+    if [ "${SEND_WHATSAPP_NOTIFICATION:-false}" = true ]; then
+        send_whatsapp_notification "$ERROR_MESSAGE" "error" 2>&1 || echo "Falha ao enviar WhatsApp de erro"
+    fi
 
     exit $EXIT_CODE
 }

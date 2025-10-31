@@ -57,22 +57,53 @@ send_whatsapp_notification() {
 # TRATAMENTO DE ERROS
 # ============================================================================
 
+# Variável para armazenar o último comando executado
+LAST_COMMAND=""
+trap 'LAST_COMMAND=$BASH_COMMAND' DEBUG
+
 # Função para lidar com erros
 handle_error() {
     local EXIT_CODE=$?
     local LINE_NUMBER=$1
 
     echo -e "${RED}[ERRO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - Erro na linha ${LINE_NUMBER}: código de saída ${EXIT_CODE}"
+    echo -e "${RED}[ERRO]${NC} Comando que falhou: ${LAST_COMMAND}"
+
+    # Preparar mensagem de erro
+    local ERROR_DETAIL=""
+
+    # Verificar erros comuns e adicionar dicas
+    if [[ "$LAST_COMMAND" == *"rclone"* ]]; then
+        if [[ "$EXIT_CODE" == "1" ]] && [[ $(cat "${CRON_LOG_FILE:-/dev/null}" 2>/dev/null | tail -5) == *"didn't find section in config file"* ]]; then
+            ERROR_DETAIL="❗ Rclone: remote '${RCLONE_REMOTE}' não configurado
+💡 Configure com: rclone config"
+        else
+            ERROR_DETAIL="❗ Erro no rclone - verifique configuração"
+        fi
+    elif [[ "$LAST_COMMAND" == *"mariabackup"* ]] || [[ "$LAST_COMMAND" == *"mysqldump"* ]]; then
+        ERROR_DETAIL="❗ Erro no backup de banco de dados"
+    elif [[ "$LAST_COMMAND" == *"tar"* ]] || [[ "$LAST_COMMAND" == *"gzip"* ]]; then
+        ERROR_DETAIL="❗ Erro ao compactar backup"
+    fi
 
     # Enviar notificação de erro via WhatsApp
     ERROR_MESSAGE="⚠️ *Backup VPS FALHOU*
 
 📅 Data: $(date '+%d/%m/%Y %H:%M:%S')
-❌ Erro na linha: ${LINE_NUMBER}
-🔢 Código de saída: ${EXIT_CODE}
-📝 Log: ${CRON_LOG_FILE:-Não disponível}"
+❌ Linha: ${LINE_NUMBER}
+🔢 Código: ${EXIT_CODE}
 
-    send_whatsapp_notification "$ERROR_MESSAGE" "error" || true
+🔧 Comando:
+\`${LAST_COMMAND}\`
+
+${ERROR_DETAIL}
+
+📝 Log: ${CRON_LOG_FILE:-${LOG_FILE:-/var/log/backup-vps.log}}"
+
+    # Garantir que a notificação seja enviada
+    if [ "${SEND_WHATSAPP_NOTIFICATION:-false}" = true ]; then
+        send_whatsapp_notification "$ERROR_MESSAGE" "error" 2>&1 || echo "Falha ao enviar WhatsApp de erro"
+    fi
 
     exit $EXIT_CODE
 }
@@ -850,14 +881,45 @@ fi
 if [ "$S3_BACKUP" = true ]; then
     if ! check_command rclone; then
         log_error "rclone não encontrado. Instale: curl https://rclone.org/install.sh | sudo bash"
+
+        # Enviar notificação de erro
+        if [ "${SEND_WHATSAPP_NOTIFICATION:-false}" = true ]; then
+            send_whatsapp_notification "❌ Backup VPS: rclone não instalado. Configure para usar backup remoto." "error"
+        fi
     else
-        log_info "Enviando backup para S3 via rclone..."
+        log_info "Verificando configuração do rclone..."
 
-        # Upload para S3
-        rclone copy "$BACKUP_FINAL" "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" --progress
+        # Verificar se o remote existe
+        if ! rclone listremotes | grep -q "^${RCLONE_REMOTE}:$"; then
+            log_error "Remote '${RCLONE_REMOTE}' não configurado no rclone"
+            log_error "Remotes disponíveis:"
+            rclone listremotes
+            log_error ""
+            log_error "Configure com: rclone config"
+            log_error "Ou edite backup.conf e defina RCLONE_REMOTE para um remote existente"
 
-        if [ $? -eq 0 ]; then
-            log_success "Backup enviado para S3: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
+            # Enviar notificação de erro
+            if [ "${SEND_WHATSAPP_NOTIFICATION:-false}" = true ]; then
+                AVAILABLE_REMOTES=$(rclone listremotes | tr '\n' ', ' | sed 's/,$//')
+                send_whatsapp_notification "❌ *Backup VPS FALHOU*
+
+🔧 Remote rclone não configurado
+
+❌ Procurado: ${RCLONE_REMOTE}
+📋 Disponíveis: ${AVAILABLE_REMOTES:-nenhum}
+
+💡 Configure com: rclone config" "error"
+            fi
+
+            exit 1
+        fi
+
+        log_success "Remote '${RCLONE_REMOTE}' encontrado"
+        log_info "Enviando backup para DigitalOcean Spaces via rclone..."
+
+        # Upload para S3/Spaces
+        if rclone copy "$BACKUP_FINAL" "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" --progress; then
+            log_success "Backup enviado para ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
 
             # Limpar backups antigos no S3
             if [ "$S3_RETENTION_COUNT" -gt 0 ]; then
