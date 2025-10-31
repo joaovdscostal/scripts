@@ -955,41 +955,50 @@ if [ "$S3_BACKUP" = true ]; then
             if [ "$S3_RETENTION_COUNT" -gt 0 ]; then
                 log_info "Limpando backups antigos no S3 (mantendo últimos ${S3_RETENTION_COUNT} dias, 1 por dia)..."
 
-                # Listar todos os arquivos com data de modificação
-                rclone lsl "${RCLONE_REMOTE}:${S3_PATH}/" | grep "backup-vps-" | awk '{print $4}' | sort -r > /tmp/s3_backups.txt
+                # Listar todos os arquivos (apenas nomes, ordenados por nome - mais recentes primeiro)
+                S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_PATH}/" 2>/dev/null | grep "^backup-vps-" | sort -r)
 
-                # Processar cada arquivo (ordenado por nome, mais recentes primeiro)
-                DAYS_KEPT=0
-                declare -A SEEN_DATES
+                if [ -z "$S3_BACKUPS" ]; then
+                    log_info "Nenhum backup encontrado no S3"
+                else
+                    # Processar cada arquivo
+                    DAYS_KEPT=0
+                    declare -A SEEN_DATES
 
-                while read -r FILENAME; do
-                    # Extrair data do nome do arquivo (YYYYMMDD)
-                    FILE_DATE=$(echo "$FILENAME" | grep -oP 'backup-vps-\K[0-9]{8}' || echo "")
-
-                    if [ -n "$FILE_DATE" ]; then
-                        # Verificar se já vimos esta data
-                        if [ -z "${SEEN_DATES[$FILE_DATE]}" ]; then
-                            # Primeira vez vendo esta data - marcar como mantido
-                            SEEN_DATES[$FILE_DATE]=1
-                            DAYS_KEPT=$((DAYS_KEPT + 1))
-                            log_info "Mantendo backup S3 do dia $FILE_DATE: $FILENAME"
-
-                            # Se já temos backups suficientes, deletar todos os demais
-                            if [ $DAYS_KEPT -gt $S3_RETENTION_COUNT ]; then
-                                log_info "Deletando do S3 (fora do período): $FILENAME"
-                                rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}"
-                            fi
-                        else
-                            # Backup duplicado do mesmo dia - deletar
-                            log_info "Removendo backup S3 duplicado do dia $FILE_DATE: $FILENAME"
-                            rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}"
+                    echo "$S3_BACKUPS" | while read -r FILENAME; do
+                        if [ -z "$FILENAME" ]; then
+                            continue
                         fi
-                    fi
-                done < /tmp/s3_backups.txt
 
-                rm -f /tmp/s3_backups.txt
+                        # Extrair data do nome do arquivo (YYYYMMDD)
+                        FILE_DATE=$(echo "$FILENAME" | sed -n 's/backup-vps-\([0-9]\{8\}\).*/\1/p')
 
-                log_success "Limpeza de backups S3 concluída"
+                        if [ -n "$FILE_DATE" ]; then
+                            # Verificar se já vimos esta data
+                            if [ ! -f "/tmp/.s3_cleanup_${FILE_DATE}" ]; then
+                                # Primeira vez vendo esta data - marcar como mantido
+                                touch "/tmp/.s3_cleanup_${FILE_DATE}"
+                                DAYS_KEPT=$((DAYS_KEPT + 1))
+
+                                if [ $DAYS_KEPT -le $S3_RETENTION_COUNT ]; then
+                                    log_info "Mantendo backup S3 do dia $FILE_DATE: $FILENAME"
+                                else
+                                    log_info "Deletando do S3 (fora do período de ${S3_RETENTION_COUNT} dias): $FILENAME"
+                                    rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}" 2>/dev/null || true
+                                fi
+                            else
+                                # Backup duplicado do mesmo dia - deletar
+                                log_info "Removendo backup S3 duplicado do dia $FILE_DATE: $FILENAME"
+                                rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}" 2>/dev/null || true
+                            fi
+                        fi
+                    done
+
+                    # Limpar arquivos temporários de marcação
+                    rm -f /tmp/.s3_cleanup_* 2>/dev/null || true
+
+                    log_success "Limpeza de backups S3 concluída"
+                fi
             fi
         else
             log_error "Erro ao enviar backup para S3"
