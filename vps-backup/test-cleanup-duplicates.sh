@@ -76,7 +76,8 @@ set +e
 set +o pipefail
 
 # Usar rclone ls e extrair apenas o nome do arquivo (segunda coluna)
-S3_BACKUPS=$(rclone ls "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" 2>&1 | grep "backup-vps-" | awk '{print $2}' | sort -r)
+# Filtrar por .tar.gz (os backups não têm prefixo backup-vps- no S3)
+S3_BACKUPS=$(rclone ls "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" 2>&1 | grep "\.tar\.gz$" | awk '{print $2}' | sort -r)
 
 set -e
 set -o pipefail
@@ -120,8 +121,8 @@ while IFS= read -r FILENAME; do
         continue
     fi
 
-    # Extrair data (YYYYMMDD)
-    FILE_DATE=$(echo "$FILENAME" | sed -n 's/backup-vps-\([0-9]\{8\}\).*/\1/p')
+    # Extrair data (YYYYMMDD) - formato: YYYYMMDD_HHMMSS.tar.gz
+    FILE_DATE=$(echo "$FILENAME" | sed -n 's/.*\([0-9]\{8\}\)_[0-9]\{6\}\.tar\.gz/\1/p')
 
     if [ -n "$FILE_DATE" ]; then
         # Incrementar contador
@@ -187,8 +188,8 @@ while IFS= read -r FILENAME; do
         continue
     fi
 
-    # Extrair data
-    FILE_DATE=$(echo "$FILENAME" | sed -n 's/backup-vps-\([0-9]\{8\}\).*/\1/p')
+    # Extrair data (YYYYMMDD) - formato: YYYYMMDD_HHMMSS.tar.gz
+    FILE_DATE=$(echo "$FILENAME" | sed -n 's/.*\([0-9]\{8\}\)_[0-9]\{6\}\.tar\.gz/\1/p')
 
     if [ -n "$FILE_DATE" ]; then
         # Verificar se já vimos esta data
@@ -263,8 +264,8 @@ while IFS= read -r FILENAME; do
         continue
     fi
 
-    # Extrair data
-    FILE_DATE=$(echo "$FILENAME" | sed -n 's/backup-vps-\([0-9]\{8\}\).*/\1/p')
+    # Extrair data (YYYYMMDD) - formato: YYYYMMDD_HHMMSS.tar.gz
+    FILE_DATE=$(echo "$FILENAME" | sed -n 's/.*\([0-9]\{8\}\)_[0-9]\{6\}\.tar\.gz/\1/p')
 
     if [ -n "$FILE_DATE" ]; then
         # Verificar se já vimos esta data
