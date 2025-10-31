@@ -68,9 +68,42 @@ echo ""
 echo "1. Listando Backups Atuais no S3"
 echo "========================================"
 
+# Testar diferentes combinações de path
+log_info "Testando path: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
+echo ""
+
 set +e
 set +o pipefail
-S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" 2>/dev/null | grep "^backup-vps-" | sort -r)
+
+# Tentar com bucket/path
+S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" 2>&1 | grep "^backup-vps-" | sort -r)
+if [ -z "$S3_BACKUPS" ]; then
+    log_warning "Vazio com: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
+
+    # Tentar só com path
+    log_info "Testando path: ${RCLONE_REMOTE}:${S3_PATH}/"
+    S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_PATH}/" 2>&1 | grep "^backup-vps-" | sort -r)
+
+    if [ -z "$S3_BACKUPS" ]; then
+        log_warning "Vazio com: ${RCLONE_REMOTE}:${S3_PATH}/"
+
+        # Listar tudo que tem
+        log_info "Listando TUDO no remote para debug:"
+        echo "Comando: rclone lsf ${RCLONE_REMOTE}: --max-depth 3"
+        rclone lsf "${RCLONE_REMOTE}:" --max-depth 3 2>&1 | head -50
+        echo ""
+        log_error "Não foi possível encontrar backups. Verifique o path acima."
+        exit 1
+    else
+        log_ok "Encontrado com: ${RCLONE_REMOTE}:${S3_PATH}/"
+        # Atualizar variáveis para usar o path correto
+        S3_FULL_PATH="${S3_PATH}"
+    fi
+else
+    log_ok "Encontrado com: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
+    S3_FULL_PATH="${S3_BUCKET}/${S3_PATH}"
+fi
+
 set -e
 set -o pipefail
 
@@ -259,13 +292,13 @@ while IFS= read -r FILENAME; do
                 log_ok "Mantendo: $FILENAME"
             else
                 log_action "Deletando (fora retenção): $FILENAME"
-                rclone delete "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/${FILENAME}" --verbose
+                rclone delete "${RCLONE_REMOTE}:${S3_FULL_PATH}/${FILENAME}" --verbose
                 DELETED_COUNT=$((DELETED_COUNT + 1))
             fi
         else
             # Duplicado - deletar
             log_action "Deletando (duplicado): $FILENAME"
-            rclone delete "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/${FILENAME}" --verbose
+            rclone delete "${RCLONE_REMOTE}:${S3_FULL_PATH}/${FILENAME}" --verbose
             DELETED_COUNT=$((DELETED_COUNT + 1))
         fi
     fi
@@ -281,7 +314,7 @@ echo ""
 # Listar arquivos restantes
 echo "5. Arquivos Restantes no S3"
 echo "========================================"
-rclone lsf "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" | grep "^backup-vps-" | nl -w3 -s'. '
+rclone lsf "${RCLONE_REMOTE}:${S3_FULL_PATH}/" | grep "^backup-vps-" | nl -w3 -s'. '
 
 echo ""
 log_ok "Processo completo!"
