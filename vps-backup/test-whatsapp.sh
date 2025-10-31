@@ -136,23 +136,33 @@ echo "----------------------------------------"
 
 log_info "Enviando mensagem de teste simples..."
 
+# Preparar payload
+PAYLOAD1="{
+    \"number\": \"$WHATSAPP_NUMBER\",
+    \"textMessage\": {
+        \"text\": \"✅ Teste WhatsApp\n\nMensagem de teste enviada em $(date '+%d/%m/%Y %H:%M:%S')\n\nSe você recebeu esta mensagem, o sistema está funcionando!\"
+    }
+}"
+
+echo ""
+log_info "PAYLOAD ENVIADO:"
+echo "----------------------------------------"
+echo "$PAYLOAD1"
+echo "----------------------------------------"
+echo ""
+
 RESPONSE=$(curl --silent --show-error --location --request POST "$WHATSAPP_API_URL" \
     --header 'Content-Type: application/json' \
     --header "apiKey: $WHATSAPP_API_KEY" \
-    --data "{
-        \"number\": \"$WHATSAPP_NUMBER\",
-        \"textMessage\": {
-            \"text\": \"✅ Teste WhatsApp\n\nMensagem de teste enviada em $(date '+%d/%m/%Y %H:%M:%S')\n\nSe você recebeu esta mensagem, o sistema está funcionando!\"
-        }
-    }" 2>&1)
+    --data "$PAYLOAD1" 2>&1)
 
 EXIT_CODE=$?
 
 echo ""
 log_info "Código de saída do curl: $EXIT_CODE"
-log_info "Resposta da API:"
+log_info "RESPOSTA COMPLETA DA API:"
 echo "----------------------------------------"
-echo "$RESPONSE" | head -20
+echo "$RESPONSE"
 echo "----------------------------------------"
 echo ""
 
@@ -205,17 +215,35 @@ ERROR_MESSAGE="⚠️ *Teste de Erro*
 
 📝 Este é apenas um teste!"
 
+# Preparar payload
+PAYLOAD2="{
+    \"number\": \"$WHATSAPP_NUMBER\",
+    \"textMessage\": {
+        \"text\": \"$ERROR_MESSAGE\"
+    }
+}"
+
+echo ""
+log_info "PAYLOAD ENVIADO:"
+echo "----------------------------------------"
+echo "$PAYLOAD2"
+echo "----------------------------------------"
+echo ""
+
 RESPONSE2=$(curl --silent --show-error --location --request POST "$WHATSAPP_API_URL" \
     --header 'Content-Type: application/json' \
     --header "apiKey: $WHATSAPP_API_KEY" \
-    --data "{
-        \"number\": \"$WHATSAPP_NUMBER\",
-        \"textMessage\": {
-            \"text\": \"$ERROR_MESSAGE\"
-        }
-    }" 2>&1)
+    --data "$PAYLOAD2" 2>&1)
 
 EXIT_CODE2=$?
+
+echo ""
+log_info "Código de saída do curl: $EXIT_CODE2"
+log_info "RESPOSTA COMPLETA DA API:"
+echo "----------------------------------------"
+echo "$RESPONSE2"
+echo "----------------------------------------"
+echo ""
 
 if [ $EXIT_CODE2 -eq 0 ]; then
     log_ok "Mensagem de erro enviada!"
@@ -246,17 +274,35 @@ SUCCESS_MESSAGE="✅ 🔄 *Teste de Backup Concluído*
 
 Este é apenas um teste do sistema de notificações!"
 
+# Preparar payload
+PAYLOAD3="{
+    \"number\": \"$WHATSAPP_NUMBER\",
+    \"textMessage\": {
+        \"text\": \"$SUCCESS_MESSAGE\"
+    }
+}"
+
+echo ""
+log_info "PAYLOAD ENVIADO:"
+echo "----------------------------------------"
+echo "$PAYLOAD3"
+echo "----------------------------------------"
+echo ""
+
 RESPONSE3=$(curl --silent --show-error --location --request POST "$WHATSAPP_API_URL" \
     --header 'Content-Type: application/json' \
     --header "apiKey: $WHATSAPP_API_KEY" \
-    --data "{
-        \"number\": \"$WHATSAPP_NUMBER\",
-        \"textMessage\": {
-            \"text\": \"$SUCCESS_MESSAGE\"
-        }
-    }" 2>&1)
+    --data "$PAYLOAD3" 2>&1)
 
 EXIT_CODE3=$?
+
+echo ""
+log_info "Código de saída do curl: $EXIT_CODE3"
+log_info "RESPOSTA COMPLETA DA API:"
+echo "----------------------------------------"
+echo "$RESPONSE3"
+echo "----------------------------------------"
+echo ""
 
 if [ $EXIT_CODE3 -eq 0 ]; then
     log_ok "Mensagem de sucesso enviada!"
