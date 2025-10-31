@@ -44,61 +44,12 @@ Uptime: $(uptime)
 EOF
 
 # ============================================================================
-# HARDWARE
-# ============================================================================
-
-cat >> "$OUTPUT_FILE" <<EOF
-================================================================================
-2. HARDWARE
-================================================================================
-
-CPU:
-$(lscpu 2>/dev/null || echo "lscpu não disponível")
-
-Memória:
-$(free -h)
-
-Disco:
-$(df -h)
-
-Partições:
-$(lsblk 2>/dev/null || echo "lsblk não disponível")
-
-EOF
-
-# ============================================================================
-# REDE
-# ============================================================================
-
-cat >> "$OUTPUT_FILE" <<EOF
-================================================================================
-3. CONFIGURAÇÃO DE REDE
-================================================================================
-
-Interfaces de rede:
-$(ip addr show 2>/dev/null || ifconfig 2>/dev/null || echo "Informação não disponível")
-
-Rotas:
-$(ip route show 2>/dev/null || route -n 2>/dev/null || echo "Informação não disponível")
-
-DNS (/etc/resolv.conf):
-$(cat /etc/resolv.conf 2>/dev/null || echo "Arquivo não encontrado")
-
-Hosts (/etc/hosts):
-$(cat /etc/hosts 2>/dev/null || echo "Arquivo não encontrado")
-
-Portas em escuta:
-$(ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || echo "Informação não disponível")
-
-EOF
-
-# ============================================================================
 # SOFTWARES INSTALADOS
 # ============================================================================
 
 cat >> "$OUTPUT_FILE" <<EOF
 ================================================================================
-4. SOFTWARES E VERSÕES
+2. SOFTWARES E VERSÕES
 ================================================================================
 
 EOF
@@ -151,10 +102,6 @@ if command -v pm2 &> /dev/null; then
 
     echo "Aplicações PM2 em execução:" >> "$OUTPUT_FILE"
     pm2 list 2>&1 >> "$OUTPUT_FILE" || true
-    echo "" >> "$OUTPUT_FILE"
-
-    echo "Configuração de startup PM2:" >> "$OUTPUT_FILE"
-    pm2 startup 2>&1 | grep -v "sudo" >> "$OUTPUT_FILE" || true
     echo "" >> "$OUTPUT_FILE"
 fi
 
@@ -273,7 +220,7 @@ fi
 
 cat >> "$OUTPUT_FILE" <<EOF
 ================================================================================
-5. TOMCAT
+3. TOMCAT
 ================================================================================
 
 EOF
@@ -316,17 +263,11 @@ echo "" >> "$OUTPUT_FILE"
 
 cat >> "$OUTPUT_FILE" <<EOF
 ================================================================================
-6. SERVIÇOS SYSTEMD
+4. SERVIÇOS SYSTEMD
 ================================================================================
 
 Serviços em execução:
 $(systemctl list-units --type=service --state=running --no-pager)
-
-Serviços habilitados para iniciar com o sistema:
-$(systemctl list-unit-files --type=service --state=enabled --no-pager)
-
-Serviços customizados em /etc/systemd/system/:
-$(ls -la /etc/systemd/system/*.service 2>/dev/null || echo "Nenhum serviço customizado encontrado")
 
 EOF
 
@@ -336,68 +277,13 @@ EOF
 
 cat >> "$OUTPUT_FILE" <<EOF
 ================================================================================
-7. CRON JOBS
+5. CRON JOBS
 ================================================================================
 
 Crontab do root:
 $(crontab -l 2>&1 || echo "Nenhum crontab configurado para root")
 
-Cron jobs do sistema (/etc/cron.d/):
-$(ls -la /etc/cron.d/ 2>/dev/null || echo "Diretório vazio ou não encontrado")
-
-Cron diário (/etc/cron.daily/):
-$(ls -la /etc/cron.daily/ 2>/dev/null || echo "Diretório vazio ou não encontrado")
-
-Cron semanal (/etc/cron.weekly/):
-$(ls -la /etc/cron.weekly/ 2>/dev/null || echo "Diretório vazio ou não encontrado")
-
-Cron mensal (/etc/cron.monthly/):
-$(ls -la /etc/cron.monthly/ 2>/dev/null || echo "Diretório vazio ou não encontrado")
-
 EOF
-
-# ============================================================================
-# USUÁRIOS E GRUPOS
-# ============================================================================
-
-cat >> "$OUTPUT_FILE" <<EOF
-================================================================================
-8. USUÁRIOS E GRUPOS
-================================================================================
-
-Usuários do sistema:
-$(cat /etc/passwd)
-
-Grupos:
-$(cat /etc/group)
-
-Usuários logados:
-$(who)
-
-EOF
-
-# ============================================================================
-# FIREWALL
-# ============================================================================
-
-cat >> "$OUTPUT_FILE" <<EOF
-================================================================================
-9. FIREWALL
-================================================================================
-
-EOF
-
-if command -v ufw &> /dev/null; then
-    echo "UFW:" >> "$OUTPUT_FILE"
-    ufw status verbose 2>&1 >> "$OUTPUT_FILE" || echo "UFW não está ativo" >> "$OUTPUT_FILE"
-    echo "" >> "$OUTPUT_FILE"
-fi
-
-if command -v iptables &> /dev/null; then
-    echo "IPTABLES:" >> "$OUTPUT_FILE"
-    iptables -L -n 2>&1 >> "$OUTPUT_FILE" || echo "Sem permissão para listar regras" >> "$OUTPUT_FILE"
-    echo "" >> "$OUTPUT_FILE"
-fi
 
 # ============================================================================
 # SCRIPTS CUSTOMIZADOS
@@ -405,7 +291,7 @@ fi
 
 cat >> "$OUTPUT_FILE" <<EOF
 ================================================================================
-10. SCRIPTS CUSTOMIZADOS
+6. SCRIPTS CUSTOMIZADOS
 ================================================================================
 
 Scripts em /opt/scripts:
@@ -420,46 +306,12 @@ $(ls -lah /usr/local/bin/*.sh 2>/dev/null || echo "Nenhum script .sh encontrado"
 EOF
 
 # ============================================================================
-# PACOTES INSTALADOS
-# ============================================================================
-
-cat >> "$OUTPUT_FILE" <<EOF
-================================================================================
-11. PACOTES INSTALADOS (APT/YUM)
-================================================================================
-
-EOF
-
-if command -v apt &> /dev/null; then
-    echo "Pacotes instalados (APT):" >> "$OUTPUT_FILE"
-    dpkg -l >> "$OUTPUT_FILE"
-    echo "" >> "$OUTPUT_FILE"
-elif command -v yum &> /dev/null; then
-    echo "Pacotes instalados (YUM):" >> "$OUTPUT_FILE"
-    yum list installed >> "$OUTPUT_FILE"
-    echo "" >> "$OUTPUT_FILE"
-fi
-
-# ============================================================================
-# VARIÁVEIS DE AMBIENTE
-# ============================================================================
-
-cat >> "$OUTPUT_FILE" <<EOF
-================================================================================
-12. VARIÁVEIS DE AMBIENTE
-================================================================================
-
-$(env | sort)
-
-EOF
-
-# ============================================================================
 # COMANDOS DE INSTALAÇÃO PARA MIGRAÇÃO
 # ============================================================================
 
 cat >> "$OUTPUT_FILE" <<'EOF'
 ================================================================================
-13. COMANDOS SUGERIDOS PARA MIGRAÇÃO
+7. COMANDOS SUGERIDOS PARA MIGRAÇÃO
 ================================================================================
 
 # Atualizar sistema
