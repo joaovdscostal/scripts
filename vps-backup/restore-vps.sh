@@ -40,17 +40,32 @@ send_whatsapp_notification() {
     esac
 
     # Enviar mensagem via API
-    curl --silent --location --request POST "${WHATSAPP_API_URL}" \
+    local TEMP_RESPONSE=$(mktemp)
+    local HTTP_CODE=$(curl --silent --show-error --write-out "%{http_code}" \
+        --location --request POST "${WHATSAPP_API_URL}" \
         --header 'Content-Type: application/json' \
         --header "apiKey: ${WHATSAPP_API_KEY}" \
+        --output "$TEMP_RESPONSE" \
         --data "{
             \"number\": \"${WHATSAPP_NUMBER}\",
             \"textMessage\": {
                 \"text\": \"${MESSAGE}\"
             }
-        }" > /dev/null 2>&1
+        }" 2>&1)
 
-    return 0
+    local CURL_EXIT=$?
+    local RESPONSE_BODY=$(cat "$TEMP_RESPONSE" 2>/dev/null)
+    rm -f "$TEMP_RESPONSE"
+
+    # Log do resultado
+    if [ $CURL_EXIT -eq 0 ] && [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+        echo "[INFO] WhatsApp enviado (HTTP $HTTP_CODE)"
+        return 0
+    else
+        echo "[AVISO] Falha ao enviar WhatsApp (curl exit: $CURL_EXIT, HTTP: $HTTP_CODE)"
+        [ -n "$RESPONSE_BODY" ] && echo "[AVISO] Resposta: $RESPONSE_BODY"
+        return 1
+    fi
 }
 
 # ============================================================================

@@ -40,17 +40,32 @@ send_whatsapp_notification() {
     esac
 
     # Enviar mensagem via API
-    curl --silent --location --request POST "${WHATSAPP_API_URL}" \
+    local TEMP_RESPONSE=$(mktemp)
+    local HTTP_CODE=$(curl --silent --show-error --write-out "%{http_code}" \
+        --location --request POST "${WHATSAPP_API_URL}" \
         --header 'Content-Type: application/json' \
         --header "apiKey: ${WHATSAPP_API_KEY}" \
+        --output "$TEMP_RESPONSE" \
         --data "{
             \"number\": \"${WHATSAPP_NUMBER}\",
             \"textMessage\": {
                 \"text\": \"${MESSAGE}\"
             }
-        }" > /dev/null 2>&1
+        }" 2>&1)
 
-    return 0
+    local CURL_EXIT=$?
+    local RESPONSE_BODY=$(cat "$TEMP_RESPONSE" 2>/dev/null)
+    rm -f "$TEMP_RESPONSE"
+
+    # Log do resultado
+    if [ $CURL_EXIT -eq 0 ] && [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+        log_info "WhatsApp enviado (HTTP $HTTP_CODE)"
+        return 0
+    else
+        log_warning "Falha ao enviar WhatsApp (curl exit: $CURL_EXIT, HTTP: $HTTP_CODE)"
+        [ -n "$RESPONSE_BODY" ] && log_warning "Resposta: $RESPONSE_BODY"
+        return 1
+    fi
 }
 
 # ============================================================================
@@ -917,16 +932,16 @@ if [ "$S3_BACKUP" = true ]; then
         log_success "Remote '${RCLONE_REMOTE}' encontrado"
         log_info "Enviando backup para DigitalOcean Spaces via rclone..."
 
-        # Upload para S3/Spaces
-        if rclone copy "$BACKUP_FINAL" "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" --progress; then
-            log_success "Backup enviado para ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
+        # Upload para S3/Spaces (silencioso)
+        if rclone copy "$BACKUP_FINAL" "${RCLONE_REMOTE}:${S3_PATH}/" --stats-one-line --stats 60s; then
+            log_success "Backup enviado para ${RCLONE_REMOTE}:${S3_PATH}/"
 
             # Limpar backups antigos no S3
             if [ "$S3_RETENTION_COUNT" -gt 0 ]; then
                 log_info "Limpando backups antigos no S3 (mantendo últimos ${S3_RETENTION_COUNT})..."
 
                 # Listar arquivos ordenados por data (mais recentes primeiro)
-                BACKUP_FILES=$(rclone lsf "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" | sort -r)
+                BACKUP_FILES=$(rclone lsf "${RCLONE_REMOTE}:${S3_PATH}/" | sort -r)
 
                 # Contar arquivos
                 FILE_COUNT=$(echo "$BACKUP_FILES" | wc -l)
@@ -941,7 +956,7 @@ if [ "$S3_BACKUP" = true ]; then
                     # Deletar arquivos
                     echo "$FILES_TO_DELETE" | while read -r FILE; do
                         log_info "Deletando do S3: $FILE"
-                        rclone delete "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/${FILE}"
+                        rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILE}"
                     done
 
                     log_success "Backups antigos removidos do S3"

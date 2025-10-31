@@ -180,6 +180,9 @@ fi
 
 echo ""
 
+log_info "Aguardando 3 segundos para evitar rate limit da API..."
+sleep 3
+
 # ============================================================================
 # TESTE 2: MENSAGEM DE ERRO (SIMULADA)
 # ============================================================================
@@ -221,6 +224,9 @@ else
 fi
 
 echo ""
+
+log_info "Aguardando 3 segundos para evitar rate limit da API..."
+sleep 3
 
 # ============================================================================
 # TESTE 3: MENSAGEM DE SUCESSO (SIMULADA)
