@@ -68,58 +68,29 @@ echo ""
 echo "1. Listando Backups Atuais no S3"
 echo "========================================"
 
-# Testar diferentes combinações de path
-log_info "Testando path: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
+# Usar rclone ls (funciona melhor que lsf para DigitalOcean Spaces)
+log_info "Listando backups com: rclone ls ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}"
 echo ""
 
 set +e
 set +o pipefail
 
-# Tentar com bucket/path
-S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" 2>&1 | grep "^backup-vps-" | sort -r)
-if [ -z "$S3_BACKUPS" ]; then
-    log_warning "Vazio com: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
-
-    # Tentar só com path
-    log_info "Testando path: ${RCLONE_REMOTE}:${S3_PATH}/"
-    S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_PATH}/" 2>&1 | grep "^backup-vps-" | sort -r)
-
-    if [ -z "$S3_BACKUPS" ]; then
-        log_warning "Vazio com: ${RCLONE_REMOTE}:${S3_PATH}/"
-
-        # Tentar com rclone ls ao invés de lsf
-        log_info "Testando com 'rclone ls' (ao invés de lsf)"
-        echo "Comando: rclone ls ${RCLONE_REMOTE}:${S3_PATH}/ | grep backup-vps"
-        S3_BACKUPS_LS=$(rclone ls "${RCLONE_REMOTE}:${S3_PATH}/" 2>&1 | grep "backup-vps-" | awk '{print $2}' | sort -r)
-
-        if [ -z "$S3_BACKUPS_LS" ]; then
-            log_warning "Vazio com rclone ls também"
-
-            # Listar tudo que tem
-            log_info "Listando TUDO no remote para debug:"
-            echo "Comando: rclone ls ${RCLONE_REMOTE}:${S3_PATH}/"
-            rclone ls "${RCLONE_REMOTE}:${S3_PATH}/" 2>&1 | head -50
-            echo ""
-            log_error "Não foi possível encontrar backups. Verifique o path acima."
-            exit 1
-        else
-            log_ok "Encontrado com 'rclone ls': ${RCLONE_REMOTE}:${S3_PATH}/"
-            S3_BACKUPS="$S3_BACKUPS_LS"
-            S3_FULL_PATH="${S3_PATH}"
-            USE_LS=true
-        fi
-    else
-        log_ok "Encontrado com: ${RCLONE_REMOTE}:${S3_PATH}/"
-        # Atualizar variáveis para usar o path correto
-        S3_FULL_PATH="${S3_PATH}"
-    fi
-else
-    log_ok "Encontrado com: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
-    S3_FULL_PATH="${S3_BUCKET}/${S3_PATH}"
-fi
+# Usar rclone ls e extrair apenas o nome do arquivo (segunda coluna)
+S3_BACKUPS=$(rclone ls "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" 2>&1 | grep "backup-vps-" | awk '{print $2}' | sort -r)
 
 set -e
 set -o pipefail
+
+if [ -z "$S3_BACKUPS" ]; then
+    log_error "Nenhum backup encontrado em: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}"
+    echo ""
+    log_info "Listando conteúdo do path para debug:"
+    rclone ls "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" 2>&1 | head -20
+    exit 1
+fi
+
+S3_FULL_PATH="${S3_BUCKET}/${S3_PATH}"
+log_ok "Backups encontrados!"
 
 if [ -z "$S3_BACKUPS" ]; then
     log_warning "Nenhum backup encontrado!"

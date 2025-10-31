@@ -951,18 +951,18 @@ if [ "$S3_BACKUP" = true ]; then
         log_info "Enviando backup para DigitalOcean Spaces via rclone..."
 
         # Upload para S3/Spaces (silencioso)
-        if rclone copy "$BACKUP_FINAL" "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" --stats-one-line --stats 60s; then
-            log_success "Backup enviado para ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/"
+        if rclone copy "$BACKUP_FINAL" "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" --stats-one-line --stats 60s; then
+            log_success "Backup enviado para ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}"
 
             # Limpar backups antigos no S3 (mantém apenas 1 por dia dos últimos X dias)
             if [ "$S3_RETENTION_COUNT" -gt 0 ]; then
                 log_info "Limpando backups antigos no S3 (mantendo últimos ${S3_RETENTION_COUNT} dias, 1 por dia)..."
 
-                # Listar todos os arquivos (apenas nomes, ordenados por nome - mais recentes primeiro)
+                # Listar todos os arquivos (usando rclone ls - funciona melhor que lsf no DigitalOcean Spaces)
                 # Temporariamente desabilitar exit on error e pipefail (grep retorna 1 quando não encontra nada)
                 set +e
                 set +o pipefail
-                S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/" 2>/dev/null | grep "^backup-vps-" | sort -r)
+                S3_BACKUPS=$(rclone ls "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" 2>/dev/null | grep "backup-vps-" | awk '{print $2}' | sort -r)
                 set -e
                 set -o pipefail
 
