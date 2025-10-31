@@ -185,10 +185,13 @@ else
     log_info "Processando backups mantendo últimos ${S3_RETENTION_COUNT} dias (1 por dia)..."
     echo ""
 
-    DAYS_KEPT=0
+    # Limpar marcadores anteriores
     rm -f /tmp/.s3_cleanup_test_* 2>/dev/null || true
 
-    echo "$S3_BACKUPS" | while read -r FILENAME; do
+    DAYS_KEPT=0
+
+    # Usar construção que não cria subshell (<<< ao invés de pipe)
+    while IFS= read -r FILENAME; do
         if [ -z "$FILENAME" ]; then
             continue
         fi
@@ -204,7 +207,7 @@ else
                 DAYS_KEPT=$((DAYS_KEPT + 1))
 
                 if [ $DAYS_KEPT -le $S3_RETENTION_COUNT ]; then
-                    log_ok "[MANTER] Dia $FILE_DATE (#${DAYS_KEPT}): $FILENAME"
+                    log_ok "[MANTER] Dia $FILE_DATE (dia #${DAYS_KEPT} de ${S3_RETENTION_COUNT}): $FILENAME"
                 else
                     log_warning "[DELETAR] Dia $FILE_DATE (fora dos ${S3_RETENTION_COUNT} dias): $FILENAME"
                 fi
@@ -214,10 +217,13 @@ else
         else
             log_error "Não foi possível extrair data de: $FILENAME"
         fi
-    done
+    done <<< "$S3_BACKUPS"
 
     # Limpar arquivos temporários
     rm -f /tmp/.s3_cleanup_test_* 2>/dev/null || true
+
+    echo ""
+    log_info "Total de dias diferentes encontrados: $DAYS_KEPT"
 fi
 
 echo ""

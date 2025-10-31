@@ -969,11 +969,14 @@ if [ "$S3_BACKUP" = true ]; then
                 if [ -z "$S3_BACKUPS" ]; then
                     log_info "Nenhum backup encontrado no S3 para limpeza"
                 else
-                    # Processar cada arquivo
-                    DAYS_KEPT=0
-                    declare -A SEEN_DATES
+                    # Limpar marcadores anteriores
+                    rm -f /tmp/.s3_cleanup_* 2>/dev/null || true
 
-                    echo "$S3_BACKUPS" | while read -r FILENAME; do
+                    # Contar dias já processados
+                    DAYS_KEPT=0
+
+                    # Processar cada arquivo (usando construção que não cria subshell)
+                    while IFS= read -r FILENAME; do
                         if [ -z "$FILENAME" ]; then
                             continue
                         fi
@@ -992,15 +995,15 @@ if [ "$S3_BACKUP" = true ]; then
                                     log_info "Mantendo backup S3 do dia $FILE_DATE: $FILENAME"
                                 else
                                     log_info "Deletando do S3 (fora do período de ${S3_RETENTION_COUNT} dias): $FILENAME"
-                                    rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}" 2>/dev/null || true
+                                    rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}" --verbose 2>&1 | head -3
                                 fi
                             else
                                 # Backup duplicado do mesmo dia - deletar
                                 log_info "Removendo backup S3 duplicado do dia $FILE_DATE: $FILENAME"
-                                rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}" 2>/dev/null || true
+                                rclone delete "${RCLONE_REMOTE}:${S3_PATH}/${FILENAME}" --verbose 2>&1 | head -3
                             fi
                         fi
-                    done
+                    done <<< "$S3_BACKUPS"
 
                     # Limpar arquivos temporários de marcação
                     rm -f /tmp/.s3_cleanup_* 2>/dev/null || true
