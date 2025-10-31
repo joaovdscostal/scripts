@@ -962,12 +962,17 @@ if [ "$S3_BACKUP" = true ]; then
                 # Temporariamente desabilitar exit on error e pipefail (grep retorna 1 quando não encontra nada)
                 set +e
                 set +o pipefail
-                S3_BACKUPS=$(rclone ls "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" 2>/dev/null | grep "backup-vps-" | awk '{print $2}' | sort -r)
+
+                log_info "Listando backups em: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}"
+                S3_BACKUPS=$(rclone ls "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" 2>&1 | grep "backup-vps-" | awk '{print $2}' | sort -r)
+
                 set -e
                 set -o pipefail
 
                 if [ -z "$S3_BACKUPS" ]; then
-                    log_info "Nenhum backup encontrado no S3 para limpeza"
+                    log_warning "Nenhum backup encontrado no S3 para limpeza"
+                    log_info "Tentando listar o que existe no path..."
+                    rclone ls "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" 2>&1 | head -10
                 else
                     # Limpar marcadores anteriores
                     rm -f /tmp/.s3_cleanup_* 2>/dev/null || true
