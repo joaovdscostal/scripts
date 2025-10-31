@@ -39,19 +39,16 @@ send_whatsapp_notification() {
             ;;
     esac
 
-    # Enviar mensagem via API
+    # Enviar mensagem via API (payload em uma única linha para evitar erro de parse)
+    local PAYLOAD="{\"number\":\"${WHATSAPP_NUMBER}\",\"textMessage\":{\"text\":\"${MESSAGE}\"}}"
+
     local TEMP_RESPONSE=$(mktemp)
     local HTTP_CODE=$(curl --silent --show-error --write-out "%{http_code}" \
         --location --request POST "${WHATSAPP_API_URL}" \
         --header 'Content-Type: application/json' \
         --header "apiKey: ${WHATSAPP_API_KEY}" \
         --output "$TEMP_RESPONSE" \
-        --data "{
-            \"number\": \"${WHATSAPP_NUMBER}\",
-            \"textMessage\": {
-                \"text\": \"${MESSAGE}\"
-            }
-        }" 2>&1)
+        --data "$PAYLOAD" 2>&1)
 
     local CURL_EXIT=$?
     local RESPONSE_BODY=$(cat "$TEMP_RESPONSE" 2>/dev/null)
@@ -84,17 +81,8 @@ handle_error() {
     echo -e "${RED}[ERRO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - Erro na linha ${LINE_NUMBER}: código de saída ${EXIT_CODE}"
     echo -e "${RED}[ERRO]${NC} Comando que falhou: ${LAST_COMMAND}"
 
-    # Enviar notificação de erro via WhatsApp
-    ERROR_MESSAGE="⚠️ *Restore VPS FALHOU*
-
-📅 Data: $(date '+%d/%m/%Y %H:%M:%S')
-❌ Linha: ${LINE_NUMBER}
-🔢 Código: ${EXIT_CODE}
-
-🔧 Comando:
-\`${LAST_COMMAND}\`
-
-📝 Log: ${RESTORE_LOG:-Não disponível}"
+    # Enviar notificação de erro via WhatsApp (usando \n para quebras de linha)
+    ERROR_MESSAGE="⚠️ *Restore VPS FALHOU*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n❌ Linha: ${LINE_NUMBER}\n🔢 Código: ${EXIT_CODE}\n\n🔧 Comando:\n\`${LAST_COMMAND}\`\n\n📝 Log: ${RESTORE_LOG:-Não disponível}"
 
     # Garantir que a notificação seja enviada
     if [ "${SEND_WHATSAPP_NOTIFICATION:-false}" = true ]; then
@@ -783,15 +771,7 @@ if [ "$SEND_WHATSAPP_NOTIFICATION" = true ]; then
     [ "$RESTORE_NGINX" = true ] && RESTORED_COMPONENTS="${RESTORED_COMPONENTS}✓ Nginx\n"
     [ "$RESTORE_SCRIPTS" = true ] && RESTORED_COMPONENTS="${RESTORED_COMPONENTS}✓ Scripts\n"
 
-    NOTIFICATION_MESSAGE="🔄 *Restore VPS Concluído*
-
-📅 Data: $(date '+%d/%m/%Y %H:%M:%S')
-📦 Backup: $(basename "$BACKUP_SOURCE")
-📝 Log: ${RESTORE_LOG}
-
-🔧 *Componentes Restaurados:*
-${RESTORED_COMPONENTS}
-✅ Status: Sucesso"
+    NOTIFICATION_MESSAGE="🔄 *Restore VPS Concluído*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n📦 Backup: $(basename "$BACKUP_SOURCE")\n📝 Log: ${RESTORE_LOG}\n\n🔧 *Componentes Restaurados:*\n${RESTORED_COMPONENTS}\n✅ Status: Sucesso"
 
     send_whatsapp_notification "$NOTIFICATION_MESSAGE" "success"
 fi

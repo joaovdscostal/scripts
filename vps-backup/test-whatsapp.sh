@@ -136,13 +136,11 @@ echo "----------------------------------------"
 
 log_info "Enviando mensagem de teste simples..."
 
-# Preparar payload
-PAYLOAD1="{
-    \"number\": \"$WHATSAPP_NUMBER\",
-    \"textMessage\": {
-        \"text\": \"✅ Teste WhatsApp\n\nMensagem de teste enviada em $(date '+%d/%m/%Y %H:%M:%S')\n\nSe você recebeu esta mensagem, o sistema está funcionando!\"
-    }
-}"
+# Preparar mensagem
+MESSAGE1="✅ Teste WhatsApp\n\nMensagem de teste enviada em $(date '+%d/%m/%Y %H:%M:%S')\n\nSe você recebeu esta mensagem, o sistema está funcionando!"
+
+# Preparar payload em uma única linha
+PAYLOAD1="{\"number\":\"$WHATSAPP_NUMBER\",\"textMessage\":{\"text\":\"$MESSAGE1\"}}"
 
 echo ""
 log_info "PAYLOAD ENVIADO:"
@@ -167,8 +165,15 @@ echo "----------------------------------------"
 echo ""
 
 if [ $EXIT_CODE -eq 0 ]; then
-    # Verificar se a resposta indica sucesso
-    if echo "$RESPONSE" | grep -q -i '"error"\|"erro"\|"fail"'; then
+    # Verificar se a resposta indica sucesso ou erro
+    if echo "$RESPONSE" | grep -q '"statusCode":400\|"statusCode":500\|"type":"entity.parse.failed"'; then
+        log_error "API retornou erro HTTP 400/500!"
+        echo ""
+        echo "Possíveis causas:"
+        echo "  1. Formato JSON inválido"
+        echo "  2. Caracteres especiais não escapados"
+        echo "  3. Payload mal formatado"
+    elif echo "$RESPONSE" | grep -q -i '"error"\|"erro"\|"fail"'; then
         log_error "API retornou erro!"
         echo ""
         echo "Verifique:"
@@ -202,26 +207,11 @@ echo "----------------------------------------"
 
 log_info "Enviando mensagem de erro simulada..."
 
-ERROR_MESSAGE="⚠️ *Teste de Erro*
+# Preparar mensagem (usando \n para quebras de linha)
+MESSAGE2="⚠️ *Teste de Erro*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n❌ Linha: 123\n🔢 Código: 1\n\n🔧 Comando:\n\`rclone copy teste.txt remote:bucket/\`\n\n❗ Teste de mensagem de erro\n\n📝 Este é apenas um teste!"
 
-📅 Data: $(date '+%d/%m/%Y %H:%M:%S')
-❌ Linha: 123
-🔢 Código: 1
-
-🔧 Comando:
-\`rclone copy teste.txt remote:bucket/\`
-
-❗ Teste de mensagem de erro
-
-📝 Este é apenas um teste!"
-
-# Preparar payload
-PAYLOAD2="{
-    \"number\": \"$WHATSAPP_NUMBER\",
-    \"textMessage\": {
-        \"text\": \"$ERROR_MESSAGE\"
-    }
-}"
+# Preparar payload em uma única linha
+PAYLOAD2="{\"number\":\"$WHATSAPP_NUMBER\",\"textMessage\":{\"text\":\"$MESSAGE2\"}}"
 
 echo ""
 log_info "PAYLOAD ENVIADO:"
@@ -246,7 +236,14 @@ echo "----------------------------------------"
 echo ""
 
 if [ $EXIT_CODE2 -eq 0 ]; then
-    log_ok "Mensagem de erro enviada!"
+    # Verificar se a resposta indica sucesso ou erro
+    if echo "$RESPONSE2" | grep -q '"statusCode":400\|"statusCode":500\|"type":"entity.parse.failed"'; then
+        log_error "API retornou erro HTTP 400/500!"
+    elif echo "$RESPONSE2" | grep -q -i '"error"\|"erro"\|"fail"'; then
+        log_error "API retornou erro!"
+    else
+        log_ok "Mensagem de erro enviada!"
+    fi
 else
     log_error "Falha ao enviar mensagem de erro"
 fi
@@ -265,22 +262,11 @@ echo "----------------------------------------"
 
 log_info "Enviando mensagem de sucesso simulada..."
 
-SUCCESS_MESSAGE="✅ 🔄 *Teste de Backup Concluído*
+# Preparar mensagem (usando \n para quebras de linha)
+MESSAGE3="✅ 🔄 *Teste de Backup Concluído*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n📦 Tamanho: 2.5GB (teste)\n📍 Local: /root/backups/teste.tar.gz\n✅ Status: Sucesso\n\nEste é apenas um teste do sistema de notificações!"
 
-📅 Data: $(date '+%d/%m/%Y %H:%M:%S')
-📦 Tamanho: 2.5GB (teste)
-📍 Local: /root/backups/teste.tar.gz
-✅ Status: Sucesso
-
-Este é apenas um teste do sistema de notificações!"
-
-# Preparar payload
-PAYLOAD3="{
-    \"number\": \"$WHATSAPP_NUMBER\",
-    \"textMessage\": {
-        \"text\": \"$SUCCESS_MESSAGE\"
-    }
-}"
+# Preparar payload em uma única linha
+PAYLOAD3="{\"number\":\"$WHATSAPP_NUMBER\",\"textMessage\":{\"text\":\"$MESSAGE3\"}}"
 
 echo ""
 log_info "PAYLOAD ENVIADO:"
@@ -305,7 +291,14 @@ echo "----------------------------------------"
 echo ""
 
 if [ $EXIT_CODE3 -eq 0 ]; then
-    log_ok "Mensagem de sucesso enviada!"
+    # Verificar se a resposta indica sucesso ou erro
+    if echo "$RESPONSE3" | grep -q '"statusCode":400\|"statusCode":500\|"type":"entity.parse.failed"'; then
+        log_error "API retornou erro HTTP 400/500!"
+    elif echo "$RESPONSE3" | grep -q -i '"error"\|"erro"\|"fail"'; then
+        log_error "API retornou erro!"
+    else
+        log_ok "Mensagem de sucesso enviada!"
+    fi
 else
     log_error "Falha ao enviar mensagem de sucesso"
 fi

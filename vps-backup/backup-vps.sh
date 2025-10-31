@@ -39,19 +39,16 @@ send_whatsapp_notification() {
             ;;
     esac
 
-    # Enviar mensagem via API
+    # Enviar mensagem via API (payload em uma única linha para evitar erro de parse)
+    local PAYLOAD="{\"number\":\"${WHATSAPP_NUMBER}\",\"textMessage\":{\"text\":\"${MESSAGE}\"}}"
+
     local TEMP_RESPONSE=$(mktemp)
     local HTTP_CODE=$(curl --silent --show-error --write-out "%{http_code}" \
         --location --request POST "${WHATSAPP_API_URL}" \
         --header 'Content-Type: application/json' \
         --header "apiKey: ${WHATSAPP_API_KEY}" \
         --output "$TEMP_RESPONSE" \
-        --data "{
-            \"number\": \"${WHATSAPP_NUMBER}\",
-            \"textMessage\": {
-                \"text\": \"${MESSAGE}\"
-            }
-        }" 2>&1)
+        --data "$PAYLOAD" 2>&1)
 
     local CURL_EXIT=$?
     local RESPONSE_BODY=$(cat "$TEMP_RESPONSE" 2>/dev/null)
@@ -90,8 +87,7 @@ handle_error() {
     # Verificar erros comuns e adicionar dicas
     if [[ "$LAST_COMMAND" == *"rclone"* ]]; then
         if [[ "$EXIT_CODE" == "1" ]] && [[ $(cat "${CRON_LOG_FILE:-/dev/null}" 2>/dev/null | tail -5) == *"didn't find section in config file"* ]]; then
-            ERROR_DETAIL="❗ Rclone: remote '${RCLONE_REMOTE}' não configurado
-💡 Configure com: rclone config"
+            ERROR_DETAIL="❗ Rclone: remote '${RCLONE_REMOTE}' não configurado\n💡 Configure com: rclone config"
         else
             ERROR_DETAIL="❗ Erro no rclone - verifique configuração"
         fi
@@ -101,19 +97,8 @@ handle_error() {
         ERROR_DETAIL="❗ Erro ao compactar backup"
     fi
 
-    # Enviar notificação de erro via WhatsApp
-    ERROR_MESSAGE="⚠️ *Backup VPS FALHOU*
-
-📅 Data: $(date '+%d/%m/%Y %H:%M:%S')
-❌ Linha: ${LINE_NUMBER}
-🔢 Código: ${EXIT_CODE}
-
-🔧 Comando:
-\`${LAST_COMMAND}\`
-
-${ERROR_DETAIL}
-
-📝 Log: ${CRON_LOG_FILE:-${LOG_FILE:-/var/log/backup-vps.log}}"
+    # Enviar notificação de erro via WhatsApp (usando \n para quebras de linha)
+    ERROR_MESSAGE="⚠️ *Backup VPS FALHOU*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n❌ Linha: ${LINE_NUMBER}\n🔢 Código: ${EXIT_CODE}\n\n🔧 Comando:\n\`${LAST_COMMAND}\`\n\n${ERROR_DETAIL}\n\n📝 Log: ${CRON_LOG_FILE:-${LOG_FILE:-/var/log/backup-vps.log}}"
 
     # Garantir que a notificação seja enviada
     if [ "${SEND_WHATSAPP_NOTIFICATION:-false}" = true ]; then
@@ -916,14 +901,7 @@ if [ "$S3_BACKUP" = true ]; then
             # Enviar notificação de erro
             if [ "${SEND_WHATSAPP_NOTIFICATION:-false}" = true ]; then
                 AVAILABLE_REMOTES=$(rclone listremotes | tr '\n' ', ' | sed 's/,$//')
-                send_whatsapp_notification "❌ *Backup VPS FALHOU*
-
-🔧 Remote rclone não configurado
-
-❌ Procurado: ${RCLONE_REMOTE}
-📋 Disponíveis: ${AVAILABLE_REMOTES:-nenhum}
-
-💡 Configure com: rclone config" "error"
+                send_whatsapp_notification "❌ *Backup VPS FALHOU*\n\n🔧 Remote rclone não configurado\n\n❌ Procurado: ${RCLONE_REMOTE}\n📋 Disponíveis: ${AVAILABLE_REMOTES:-nenhum}\n\n💡 Configure com: rclone config" "error"
             fi
 
             exit 1
@@ -992,12 +970,7 @@ if [ "$SEND_WHATSAPP_NOTIFICATION" = true ]; then
 
     BACKUP_SIZE=$(du -sh "$BACKUP_FINAL" 2>/dev/null | cut -f1)
 
-    NOTIFICATION_MESSAGE="🔄 *Backup VPS Concluído*
-
-📅 Data: $(date '+%d/%m/%Y %H:%M:%S')
-📦 Tamanho: ${BACKUP_SIZE}
-📍 Local: ${BACKUP_FINAL}
-✅ Status: Sucesso"
+    NOTIFICATION_MESSAGE="🔄 *Backup VPS Concluído*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n📦 Tamanho: ${BACKUP_SIZE}\n📍 Local: ${BACKUP_FINAL}\n✅ Status: Sucesso"
 
     send_whatsapp_notification "$NOTIFICATION_MESSAGE" "success"
 fi
