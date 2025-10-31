@@ -152,11 +152,12 @@ REMOTE_PATH="/backups/vps-producao"
 REMOTE_SSH_KEY="/root/.ssh/id_rsa_backup"
 
 # ============================================================================
-# BACKUP PARA S3 VIA RCLONE
+# BACKUP PARA DIGITALOCEAN SPACES VIA RCLONE
 # ============================================================================
 
+# Configure o rclone primeiro (veja instruções abaixo)
 S3_BACKUP=true
-RCLONE_REMOTE="s3"
+RCLONE_REMOTE="digitalocean"
 S3_BUCKET="empresa-backups"
 S3_PATH="vps-producao"
 S3_RETENTION_COUNT=15

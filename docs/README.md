@@ -76,17 +76,51 @@ Para desabilitar as notificações via WhatsApp, edite o arquivo `backup.conf`:
 SEND_WHATSAPP_NOTIFICATION=false
 ```
 
+## Backup Remoto (DigitalOcean Spaces)
+
+O sistema suporta envio automático de backups para **DigitalOcean Spaces** (compatível com S3):
+
+### Configuração Rápida
+
+1. **Configure o rclone** (veja guia completo em [`CONFIGURAR-DIGITALOCEAN-SPACES.md`](CONFIGURAR-DIGITALOCEAN-SPACES.md))
+   ```bash
+   rclone config
+   # Nome: digitalocean
+   # Tipo: s3
+   # Provider: DigitalOcean Spaces
+   ```
+
+2. **Edite `backup.conf`:**
+   ```bash
+   S3_BACKUP=true
+   RCLONE_REMOTE="digitalocean"
+   S3_BUCKET="seu-space-name"
+   S3_PATH="backups/vps"
+   S3_RETENTION_COUNT=10  # Mantém últimos 10 backups
+   ```
+
+3. **Recursos:**
+   - ✅ Upload automático após cada backup
+   - ✅ Limpeza automática de backups antigos
+   - ✅ Compatível com S3 (fácil migração)
+   - ✅ Mais barato que AWS S3 ($5/mês para 250GB)
+
+📖 **Guia completo**: [`docs/CONFIGURAR-DIGITALOCEAN-SPACES.md`](CONFIGURAR-DIGITALOCEAN-SPACES.md)
+
 ## Estrutura de Diretórios
 
 ```
 scripts/
-├── docs/                          # Documentação
-│   ├── README.md                  # Este arquivo
-│   └── CLAUDE.md                  # Instruções para Claude Code
-├── vps-backup/                    # Scripts de backup
-│   ├── backup-vps.sh             # Script principal
-│   ├── backup.conf               # Arquivo de configuração
-│   └── check-requirements.sh     # Verificação de dependências
+├── docs/                                      # Documentação
+│   ├── README.md                              # Este arquivo
+│   ├── CLAUDE.md                              # Instruções para Claude Code
+│   ├── CONFIGURAR-DIGITALOCEAN-SPACES.md     # Guia DigitalOcean Spaces
+│   └── exemplo-cron.txt                       # Exemplos de cron
+├── vps-backup/                                # Scripts de backup
+│   ├── backup-vps.sh                         # Script principal de backup
+│   ├── restore-vps.sh                        # Script de restore
+│   ├── backup.conf                           # Arquivo de configuração
+│   └── backup.conf.example                   # Exemplo de configuração
 └── [outros scripts...]
 ```
 
