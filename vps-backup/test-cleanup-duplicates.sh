@@ -87,13 +87,27 @@ if [ -z "$S3_BACKUPS" ]; then
     if [ -z "$S3_BACKUPS" ]; then
         log_warning "Vazio com: ${RCLONE_REMOTE}:${S3_PATH}/"
 
-        # Listar tudo que tem
-        log_info "Listando TUDO no remote para debug:"
-        echo "Comando: rclone lsf ${RCLONE_REMOTE}: --max-depth 3"
-        rclone lsf "${RCLONE_REMOTE}:" --max-depth 3 2>&1 | head -50
-        echo ""
-        log_error "Não foi possível encontrar backups. Verifique o path acima."
-        exit 1
+        # Tentar com rclone ls ao invés de lsf
+        log_info "Testando com 'rclone ls' (ao invés de lsf)"
+        echo "Comando: rclone ls ${RCLONE_REMOTE}:${S3_PATH}/ | grep backup-vps"
+        S3_BACKUPS_LS=$(rclone ls "${RCLONE_REMOTE}:${S3_PATH}/" 2>&1 | grep "backup-vps-" | awk '{print $2}' | sort -r)
+
+        if [ -z "$S3_BACKUPS_LS" ]; then
+            log_warning "Vazio com rclone ls também"
+
+            # Listar tudo que tem
+            log_info "Listando TUDO no remote para debug:"
+            echo "Comando: rclone ls ${RCLONE_REMOTE}:${S3_PATH}/"
+            rclone ls "${RCLONE_REMOTE}:${S3_PATH}/" 2>&1 | head -50
+            echo ""
+            log_error "Não foi possível encontrar backups. Verifique o path acima."
+            exit 1
+        else
+            log_ok "Encontrado com 'rclone ls': ${RCLONE_REMOTE}:${S3_PATH}/"
+            S3_BACKUPS="$S3_BACKUPS_LS"
+            S3_FULL_PATH="${S3_PATH}"
+            USE_LS=true
+        fi
     else
         log_ok "Encontrado com: ${RCLONE_REMOTE}:${S3_PATH}/"
         # Atualizar variáveis para usar o path correto
