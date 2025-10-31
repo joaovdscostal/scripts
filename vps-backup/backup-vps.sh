@@ -97,8 +97,11 @@ handle_error() {
         ERROR_DETAIL="❗ Erro ao compactar backup"
     fi
 
+    # Escapar caracteres especiais do comando para JSON
+    SAFE_COMMAND=$(echo "$LAST_COMMAND" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
+
     # Enviar notificação de erro via WhatsApp (usando \n para quebras de linha)
-    ERROR_MESSAGE="⚠️ *Backup VPS FALHOU*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n❌ Linha: ${LINE_NUMBER}\n🔢 Código: ${EXIT_CODE}\n\n🔧 Comando:\n\`${LAST_COMMAND}\`\n\n${ERROR_DETAIL}\n\n📝 Log: ${CRON_LOG_FILE:-${LOG_FILE:-/var/log/backup-vps.log}}"
+    ERROR_MESSAGE="⚠️ *Backup VPS FALHOU*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n❌ Linha: ${LINE_NUMBER}\n🔢 Código: ${EXIT_CODE}\n\n🔧 Comando:\n${SAFE_COMMAND}\n\n${ERROR_DETAIL}\n\n📝 Log: ${CRON_LOG_FILE:-${LOG_FILE:-/var/log/backup-vps.log}}"
 
     # Garantir que a notificação seja enviada
     if [ "${SEND_WHATSAPP_NOTIFICATION:-false}" = true ]; then
@@ -956,10 +959,13 @@ if [ "$S3_BACKUP" = true ]; then
                 log_info "Limpando backups antigos no S3 (mantendo últimos ${S3_RETENTION_COUNT} dias, 1 por dia)..."
 
                 # Listar todos os arquivos (apenas nomes, ordenados por nome - mais recentes primeiro)
+                # Temporariamente desabilitar exit on error para o grep (que retorna 1 se não encontrar nada)
+                set +e
                 S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_PATH}/" 2>/dev/null | grep "^backup-vps-" | sort -r)
+                set -e
 
                 if [ -z "$S3_BACKUPS" ]; then
-                    log_info "Nenhum backup encontrado no S3"
+                    log_info "Nenhum backup encontrado no S3 para limpeza"
                 else
                     # Processar cada arquivo
                     DAYS_KEPT=0

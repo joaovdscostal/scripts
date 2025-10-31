@@ -81,8 +81,11 @@ handle_error() {
     echo -e "${RED}[ERRO]${NC} $(date '+%Y-%m-%d %H:%M:%S') - Erro na linha ${LINE_NUMBER}: código de saída ${EXIT_CODE}"
     echo -e "${RED}[ERRO]${NC} Comando que falhou: ${LAST_COMMAND}"
 
+    # Escapar caracteres especiais do comando para JSON
+    SAFE_COMMAND=$(echo "$LAST_COMMAND" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
+
     # Enviar notificação de erro via WhatsApp (usando \n para quebras de linha)
-    ERROR_MESSAGE="⚠️ *Restore VPS FALHOU*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n❌ Linha: ${LINE_NUMBER}\n🔢 Código: ${EXIT_CODE}\n\n🔧 Comando:\n\`${LAST_COMMAND}\`\n\n📝 Log: ${RESTORE_LOG:-Não disponível}"
+    ERROR_MESSAGE="⚠️ *Restore VPS FALHOU*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n❌ Linha: ${LINE_NUMBER}\n🔢 Código: ${EXIT_CODE}\n\n🔧 Comando:\n${SAFE_COMMAND}\n\n📝 Log: ${RESTORE_LOG:-Não disponível}"
 
     # Garantir que a notificação seja enviada
     if [ "${SEND_WHATSAPP_NOTIFICATION:-false}" = true ]; then
