@@ -962,7 +962,7 @@ if [ "$S3_BACKUP" = true ]; then
                 # Temporariamente desabilitar exit on error e pipefail (grep retorna 1 quando não encontra nada)
                 set +e
                 set +o pipefail
-                S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_PATH}/" 2>/dev/null | grep "^backup-vps-" | sort -r)
+                S3_BACKUPS=$(rclone lsf "${RCLONE_REMOTE}:${S3_BUCKET}/{S3_PATH}/" 2>/dev/null | grep "^backup-vps-" | sort -r)
                 set -e
                 set -o pipefail
 
