@@ -146,19 +146,116 @@ confirm_action() {
 }
 
 # ============================================================================
-# VERIFICAR ARGUMENTOS
+# SELEÇÃO DE BACKUP DO S3 (se nenhum parâmetro for fornecido)
 # ============================================================================
 
 if [ $# -lt 1 ]; then
-    echo "Uso: $0 <caminho-do-backup>"
+    echo "=============================================="
+    echo "SELEÇÃO DE BACKUP DO S3"
+    echo "=============================================="
     echo ""
-    echo "Exemplos:"
-    echo "  $0 /root/backups/20250130_120000.tar.gz"
-    echo "  $0 /root/backups/20250130_120000"
-    exit 1
-fi
+    echo "Buscando backups disponíveis no DigitalOcean Spaces..."
+    echo ""
 
-BACKUP_SOURCE=$1
+    # Carregar configurações para acessar S3
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CONFIG_FILE="${SCRIPT_DIR}/backup.conf"
+
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo "[ERRO] Arquivo de configuração não encontrado: $CONFIG_FILE"
+        echo ""
+        echo "Uso manual: $0 <caminho-do-backup>"
+        exit 1
+    fi
+
+    source "$CONFIG_FILE"
+
+    # Verificar se S3_BACKUP está habilitado
+    if [ "${S3_BACKUP:-false}" != true ]; then
+        echo "[ERRO] S3_BACKUP não está habilitado no backup.conf"
+        echo ""
+        echo "Uso manual: $0 <caminho-do-backup>"
+        exit 1
+    fi
+
+    # Listar últimos 5 backups do S3
+    set +e
+    set +o pipefail
+    S3_BACKUPS=$(rclone ls "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}" 2>&1 | grep "\.tar\.gz$" | awk '{print $2}' | sort -r | head -5)
+    set -e
+    set -o pipefail
+
+    if [ -z "$S3_BACKUPS" ]; then
+        echo "[ERRO] Nenhum backup encontrado em: ${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}"
+        echo ""
+        echo "Uso manual: $0 <caminho-do-backup>"
+        exit 1
+    fi
+
+    echo "Últimos 5 backups disponíveis:"
+    echo ""
+
+    # Criar array e mostrar opções
+    mapfile -t BACKUP_ARRAY <<< "$S3_BACKUPS"
+
+    for i in "${!BACKUP_ARRAY[@]}"; do
+        BACKUP_FILE="${BACKUP_ARRAY[$i]}"
+
+        # Extrair data/hora do nome (formato: YYYYMMDD_HHMMSS.tar.gz)
+        if [[ "$BACKUP_FILE" =~ ([0-9]{8})_([0-9]{6})\.tar\.gz ]]; then
+            DATE_PART="${BASH_REMATCH[1]}"
+            TIME_PART="${BASH_REMATCH[2]}"
+
+            # Formatar data/hora legível
+            FORMATTED_DATE="${DATE_PART:6:2}/${DATE_PART:4:2}/${DATE_PART:0:4}"
+            FORMATTED_TIME="${TIME_PART:0:2}:${TIME_PART:2:2}:${TIME_PART:4:2}"
+
+            echo "  $((i+1))) $BACKUP_FILE"
+            echo "     📅 $FORMATTED_DATE às $FORMATTED_TIME"
+            echo ""
+        else
+            echo "  $((i+1))) $BACKUP_FILE"
+            echo ""
+        fi
+    done
+
+    echo "  0) Cancelar"
+    echo ""
+    read -p "Escolha o backup para restaurar [0-${#BACKUP_ARRAY[@]}]: " CHOICE
+
+    if [ "$CHOICE" = "0" ] || [ -z "$CHOICE" ]; then
+        echo "Operação cancelada."
+        exit 0
+    fi
+
+    if [ "$CHOICE" -lt 1 ] || [ "$CHOICE" -gt "${#BACKUP_ARRAY[@]}" ]; then
+        echo "[ERRO] Opção inválida: $CHOICE"
+        exit 1
+    fi
+
+    SELECTED_BACKUP="${BACKUP_ARRAY[$((CHOICE-1))]}"
+
+    echo ""
+    echo "[INFO] Backup selecionado: $SELECTED_BACKUP"
+    echo "[INFO] Baixando do S3..."
+    echo ""
+
+    # Baixar backup do S3
+    DOWNLOAD_DIR="/tmp/restore-download-$(date +%s)"
+    mkdir -p "$DOWNLOAD_DIR"
+
+    if rclone copy "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/${SELECTED_BACKUP}" "$DOWNLOAD_DIR" --progress; then
+        BACKUP_SOURCE="$DOWNLOAD_DIR/$SELECTED_BACKUP"
+        echo "[OK] Backup baixado com sucesso!"
+        echo ""
+    else
+        echo "[ERRO] Falha ao baixar backup do S3"
+        rm -rf "$DOWNLOAD_DIR"
+        exit 1
+    fi
+else
+    BACKUP_SOURCE=$1
+fi
 
 # Verificar se é arquivo compactado ou diretório
 if [ -f "$BACKUP_SOURCE" ]; then
