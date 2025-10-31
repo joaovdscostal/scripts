@@ -593,20 +593,47 @@ if [ "$RESTORE_TOMCAT" = true ] && [ -d "${BACKUP_DIR}/tomcat" ]; then
 
     log_info "=========================================="
 
-    if ! confirm_action "Isto irá sobrescrever componentes do Tomcat em $TOMCAT_HOME"; then
+    # Verificar se TOMCAT_HOME existe, criar se não existir
+    if [ ! -d "$TOMCAT_HOME" ]; then
+        log_warning "Diretório Tomcat não encontrado: $TOMCAT_HOME"
+        read -p "Deseja criar o diretório e continuar? (S/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Ss]$ ]]; then
+            mkdir -p "$TOMCAT_HOME"/{bin,conf,lib,webapps,logs,temp,work}
+            log_success "Diretório Tomcat criado"
+        else
+            log_warning "Restore do Tomcat cancelado"
+            RESTORE_TOMCAT=false
+        fi
+    fi
+
+    if [ "$RESTORE_TOMCAT" = true ] && ! confirm_action "Isto irá sobrescrever componentes do Tomcat em $TOMCAT_HOME"; then
         log_warning "Restore do Tomcat cancelado"
-    else
-        # Parar Tomcat (se não for apenas webapps)
+    elif [ "$RESTORE_TOMCAT" = true ]; then
+        # Parar Tomcat (se não for apenas webapps e se o serviço/script existir)
         if [ "$RESTORE_TYPE" != "webapps-only" ]; then
-            systemctl stop tomcat || "$TOMCAT_HOME/bin/shutdown.sh" || true
+            # Tentar parar via systemctl primeiro, depois via script, ignorar erros
+            if systemctl list-unit-files | grep -q "^tomcat.service"; then
+                systemctl stop tomcat || true
+            elif [ -f "$TOMCAT_HOME/bin/shutdown.sh" ]; then
+                "$TOMCAT_HOME/bin/shutdown.sh" || true
+            else
+                log_info "Tomcat não está rodando (serviço não encontrado)"
+            fi
         fi
 
         # OPÇÃO 1: Restaurar SOMENTE webapps
         if [ "$RESTORE_TYPE" = "webapps-only" ]; then
             if [ -d "${BACKUP_DIR}/tomcat/webapps" ]; then
                 log_info "Parando Tomcat para restaurar webapps..."
-                systemctl stop tomcat || "$TOMCAT_HOME/bin/shutdown.sh" || true
+                # Tentar parar via systemctl primeiro, depois via script, ignorar erros
+                if systemctl list-unit-files | grep -q "^tomcat.service"; then
+                    systemctl stop tomcat || true
+                elif [ -f "$TOMCAT_HOME/bin/shutdown.sh" ]; then
+                    "$TOMCAT_HOME/bin/shutdown.sh" || true
+                fi
 
+                mkdir -p "${TOMCAT_HOME}/webapps"
                 rm -rf "${TOMCAT_HOME}/webapps"/*
                 cp -r "${BACKUP_DIR}/tomcat/webapps"/* "${TOMCAT_HOME}/webapps/"
                 log_success "Webapps restauradas"
@@ -618,18 +645,21 @@ if [ "$RESTORE_TOMCAT" = true ] && [ -d "${BACKUP_DIR}/tomcat" ]; then
         elif [ "$RESTORE_TYPE" = "skip-webapps" ]; then
             # Restaurar bin/
             if [ -d "${BACKUP_DIR}/tomcat/bin" ]; then
+                mkdir -p "${TOMCAT_HOME}/bin"
                 cp -r "${BACKUP_DIR}/tomcat/bin"/* "${TOMCAT_HOME}/bin/"
                 log_success "Binários restaurados"
             fi
 
             # Restaurar conf/
             if [ -d "${BACKUP_DIR}/tomcat/conf" ]; then
+                mkdir -p "${TOMCAT_HOME}/conf"
                 cp -r "${BACKUP_DIR}/tomcat/conf"/* "${TOMCAT_HOME}/conf/"
                 log_success "Configurações restauradas"
             fi
 
             # Restaurar lib/
             if [ -d "${BACKUP_DIR}/tomcat/lib" ]; then
+                mkdir -p "${TOMCAT_HOME}/lib"
                 cp -r "${BACKUP_DIR}/tomcat/lib"/* "${TOMCAT_HOME}/lib/"
                 log_success "Bibliotecas restauradas"
             fi
@@ -648,6 +678,7 @@ if [ "$RESTORE_TOMCAT" = true ] && [ -d "${BACKUP_DIR}/tomcat" ]; then
             # Restaurar todos os diretórios
             for dir in bin conf lib webapps; do
                 if [ -d "${BACKUP_DIR}/tomcat/$dir" ]; then
+                    mkdir -p "${TOMCAT_HOME}/$dir"
                     if [ "$dir" = "webapps" ]; then
                         rm -rf "${TOMCAT_HOME}/webapps"/*
                     fi
@@ -675,8 +706,14 @@ if [ "$RESTORE_TOMCAT" = true ] && [ -d "${BACKUP_DIR}/tomcat" ]; then
         read -p "Deseja iniciar o Tomcat agora? (S/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Ss]$ ]]; then
-            systemctl start tomcat || "$TOMCAT_HOME/bin/startup.sh"
-            log_success "Tomcat iniciado"
+            # Tentar iniciar via systemctl primeiro, depois via script
+            if systemctl list-unit-files | grep -q "^tomcat.service"; then
+                systemctl start tomcat && log_success "Tomcat iniciado"
+            elif [ -f "$TOMCAT_HOME/bin/startup.sh" ]; then
+                "$TOMCAT_HOME/bin/startup.sh" && log_success "Tomcat iniciado"
+            else
+                log_error "Não foi possível iniciar Tomcat (serviço não encontrado)"
+            fi
         fi
 
         log_success "Restore Tomcat concluído"
@@ -774,10 +811,15 @@ if [ "$RESTORE_NGINX" = true ] && [ -d "${BACKUP_DIR}/nginx" ]; then
     if ! confirm_action "Isto irá sobrescrever as configurações do Nginx"; then
         log_warning "Restore do Nginx cancelado"
     else
-        # Fazer backup das configurações atuais
-        NGINX_BACKUP="/etc/nginx_backup_$(date +%s)"
-        cp -r /etc/nginx "$NGINX_BACKUP"
-        log_info "Backup das configurações atuais salvo em: $NGINX_BACKUP"
+        # Fazer backup das configurações atuais (se existirem)
+        if [ -d "/etc/nginx" ]; then
+            NGINX_BACKUP="/etc/nginx_backup_$(date +%s)"
+            cp -r /etc/nginx "$NGINX_BACKUP"
+            log_info "Backup das configurações atuais salvo em: $NGINX_BACKUP"
+        else
+            log_info "Diretório /etc/nginx não existe (servidor limpo)"
+            mkdir -p /etc/nginx
+        fi
 
         # Restaurar configurações
         if [ -d "${BACKUP_DIR}/nginx/nginx" ]; then
@@ -787,6 +829,7 @@ if [ "$RESTORE_NGINX" = true ] && [ -d "${BACKUP_DIR}/nginx" ]; then
 
         # Restaurar certificados SSL
         if [ -d "${BACKUP_DIR}/nginx/ssl" ]; then
+            mkdir -p "$SSL_CERTS_DIR"
             cp -r "${BACKUP_DIR}/nginx/ssl"/* "$SSL_CERTS_DIR/"
             log_success "Certificados SSL restaurados"
         fi
