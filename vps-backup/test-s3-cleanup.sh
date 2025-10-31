@@ -125,6 +125,30 @@ rclone lsf "${RCLONE_REMOTE}:${S3_PATH}/" || log_warning "Falha ao listar"
 echo "----------------------------------------"
 echo ""
 
+# Teste 1.5: Tentar sem a barra final
+log_info "Teste 1.5: rclone lsf SEM barra final"
+echo "Comando: rclone lsf \"${RCLONE_REMOTE}:${S3_PATH}\""
+echo "----------------------------------------"
+rclone lsf "${RCLONE_REMOTE}:${S3_PATH}" || log_warning "Falha ao listar"
+echo "----------------------------------------"
+echo ""
+
+# Teste 1.6: Usar ls ao invés de lsf
+log_info "Teste 1.6: rclone ls (formato diferente)"
+echo "Comando: rclone ls \"${RCLONE_REMOTE}:${S3_PATH}/\""
+echo "----------------------------------------"
+rclone ls "${RCLONE_REMOTE}:${S3_PATH}/" || log_warning "Falha ao listar"
+echo "----------------------------------------"
+echo ""
+
+# Teste 1.7: Verificar se o bucket existe
+log_info "Teste 1.7: Listar buckets/pastas"
+echo "Comando: rclone lsd \"${RCLONE_REMOTE}:\""
+echo "----------------------------------------"
+rclone lsd "${RCLONE_REMOTE}:" || log_warning "Falha ao listar buckets"
+echo "----------------------------------------"
+echo ""
+
 # Teste 2: Filtrar apenas backup-vps
 log_info "Teste 2: Filtrar apenas arquivos backup-vps-*"
 echo "Comando: rclone lsf \"${RCLONE_REMOTE}:${S3_PATH}/\" | grep \"^backup-vps-\""
