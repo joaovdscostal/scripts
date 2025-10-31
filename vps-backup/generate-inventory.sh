@@ -226,6 +226,9 @@ cat >> "$OUTPUT_FILE" <<EOF
 EOF
 
 TOMCAT_PATHS=(
+    "/root/appservers/apache-tomcat-9"
+    "/root/appservers/tomcat"
+    "/root/appservers/tomcat9"
     "/opt/tomcat"
     "/opt/tomcat9"
     "/usr/share/tomcat9"

@@ -256,7 +256,15 @@ echo "9. Apache Tomcat"
 echo "----------------------------------------"
 
 TOMCAT_FOUND=false
-TOMCAT_PATHS=("/opt/tomcat" "/opt/tomcat9" "/usr/share/tomcat9" "/var/lib/tomcat9")
+TOMCAT_PATHS=(
+    "/root/appservers/apache-tomcat-9"
+    "/root/appservers/tomcat"
+    "/root/appservers/tomcat9"
+    "/opt/tomcat"
+    "/opt/tomcat9"
+    "/usr/share/tomcat9"
+    "/var/lib/tomcat9"
+)
 
 for TOMCAT_PATH in "${TOMCAT_PATHS[@]}"; do
     if [ -d "$TOMCAT_PATH" ]; then
@@ -366,22 +374,6 @@ if command -v crontab &> /dev/null; then
     fi
 else
     log_error "Cron não disponível"
-fi
-
-echo ""
-
-# ============================================================================
-# VERIFICAR MAIL (NOTIFICAÇÕES)
-# ============================================================================
-
-echo "14. Mail (para notificações opcionais)"
-echo "----------------------------------------"
-
-if command -v mail &> /dev/null; then
-    log_ok "Mail disponível"
-else
-    log_info "Mail não encontrado (necessário apenas para notificações)"
-    echo "   Para instalar: sudo apt install mailutils"
 fi
 
 echo ""
