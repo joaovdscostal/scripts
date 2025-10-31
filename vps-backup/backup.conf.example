@@ -120,6 +120,14 @@ STATIC_APPS_DIRS=(
 
 BACKUP_NGINX=true
 NGINX_CONFIG_DIR="/etc/nginx"
+
+# Sites do Nginx para fazer backup (separados por espaço)
+# Use "all" para fazer backup de TODOS os sites do sites-available
+# Deixe vazio ("") para NÃO fazer backup de sites (apenas configs principais)
+# Exemplo específico: NGINX_SITES="api.exemplo.com app.exemplo.com"
+# Exemplo todos: NGINX_SITES="all"
+NGINX_SITES="all"
+
 BACKUP_NGINX_LOGS=false
 BACKUP_SSL_CERTS=true
 SSL_CERTS_DIR="/etc/letsencrypt"

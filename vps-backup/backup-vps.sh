@@ -617,8 +617,45 @@ fi
 if [ "$BACKUP_NGINX" = true ] && [ -d "$NGINX_CONFIG_DIR" ]; then
     log_info "Iniciando backup do Nginx..."
 
-    # Backup das configurações
-    cp -r "$NGINX_CONFIG_DIR" "${BACKUP_DIR}/nginx/"
+    # Criar estrutura de diretórios
+    mkdir -p "${BACKUP_DIR}/nginx/sites-available"
+    mkdir -p "${BACKUP_DIR}/nginx/sites-enabled"
+
+    # Copiar arquivos de configuração principal
+    log_info "Copiando arquivos de configuração principal..."
+    cp "$NGINX_CONFIG_DIR/nginx.conf" "${BACKUP_DIR}/nginx/" 2>/dev/null || true
+    cp -r "$NGINX_CONFIG_DIR/conf.d" "${BACKUP_DIR}/nginx/" 2>/dev/null || true
+    cp -r "$NGINX_CONFIG_DIR/snippets" "${BACKUP_DIR}/nginx/" 2>/dev/null || true
+    cp -r "$NGINX_CONFIG_DIR/modules-enabled" "${BACKUP_DIR}/nginx/" 2>/dev/null || true
+
+    # Backup seletivo de sites
+    if [ "$NGINX_SITES" = "all" ]; then
+        # Todos os sites
+        log_info "Copiando TODOS os sites..."
+        cp -r "$NGINX_CONFIG_DIR/sites-available/"* "${BACKUP_DIR}/nginx/sites-available/" 2>/dev/null || true
+        cp -rP "$NGINX_CONFIG_DIR/sites-enabled/"* "${BACKUP_DIR}/nginx/sites-enabled/" 2>/dev/null || true
+        log_success "Todos os sites copiados"
+    elif [ -n "$NGINX_SITES" ]; then
+        # Sites específicos
+        log_info "Copiando sites específicos: $NGINX_SITES"
+        for SITE in $NGINX_SITES; do
+            if [ -f "$NGINX_CONFIG_DIR/sites-available/$SITE" ]; then
+                cp "$NGINX_CONFIG_DIR/sites-available/$SITE" "${BACKUP_DIR}/nginx/sites-available/"
+                log_success "  Site copiado: $SITE"
+            else
+                log_warning "  Site não encontrado: $SITE"
+            fi
+
+            # Copiar link simbólico do sites-enabled se existir
+            if [ -L "$NGINX_CONFIG_DIR/sites-enabled/$SITE" ]; then
+                cp -P "$NGINX_CONFIG_DIR/sites-enabled/$SITE" "${BACKUP_DIR}/nginx/sites-enabled/"
+            fi
+        done
+    else
+        # Vazio = não copiar sites
+        log_info "NGINX_SITES vazio - pulando backup de sites (apenas configs principais)"
+    fi
+
     log_success "Configurações Nginx copiadas"
 
     # Backup dos logs (opcional)
