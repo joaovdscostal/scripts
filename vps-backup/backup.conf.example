@@ -1,0 +1,166 @@
+#!/bin/bash
+# ============================================================================
+# ARQUIVO DE CONFIGURAÇÃO DO SISTEMA DE BACKUP VPS - EXEMPLO
+# ============================================================================
+# Copie este arquivo para backup.conf e edite conforme suas necessidades:
+# cp backup.conf.example backup.conf
+# nano backup.conf
+
+# ============================================================================
+# CONFIGURAÇÕES GERAIS
+# ============================================================================
+
+BACKUP_ROOT="/root/backups"
+BACKUP_RETENTION_DAYS=7
+COMPRESS_BACKUPS=true
+SEND_EMAIL_NOTIFICATION=false
+EMAIL_TO="admin@example.com"
+
+# ============================================================================
+# MODO DE BACKUP (NOVO!)
+# ============================================================================
+# Escolha o que incluir no backup:
+#
+# "full"        = Backup completo (tudo)
+# "infra"       = Apenas infraestrutura (sem banco e sem webapps do Tomcat)
+# "database"    = Apenas banco de dados
+# "webapps"     = Apenas webapps do Tomcat
+#
+# Deixe vazio ("") para usar as configurações individuais abaixo
+BACKUP_MODE=""
+
+# ============================================================================
+# CONFIGURAÇÕES DE BANCO DE DADOS (MariaDB)
+# ============================================================================
+
+# Fazer backup de banco de dados? (true/false)
+BACKUP_DATABASE=true
+
+DB_USER="root"
+DB_PASSWORD="SuaSenhaForteAqui123!"
+DB_HOST="localhost"
+DB_PORT="3306"
+
+# Backup de bancos específicos (deixe vazio para todos)
+DB_LIST=""
+
+# Bancos para excluir
+DB_EXCLUDE="information_schema performance_schema mysql sys"
+
+# Método: "mariabackup" (rápido) ou "mysqldump" (compatível)
+DB_BACKUP_METHOD="mariabackup"
+
+# ============================================================================
+# APLICAÇÕES SPRING BOOT (APIs Java 21)
+# ============================================================================
+
+BACKUP_SPRINGBOOT=true
+
+# Lista de aplicações Spring Boot
+# Formato: "nome_app:caminho_diretorio_ou_jar:caminho_service"
+#
+# Você pode especificar:
+#   - Um DIRETÓRIO (recomendado): Copia todo o conteúdo da pasta
+#     Exemplo: "api-produtos:/opt/apps/api-produtos:/etc/systemd/system/api-produtos.service"
+#
+#   - Um ARQUIVO JAR: Copia apenas o JAR + arquivos de configuração (.properties/.yml)
+#     Exemplo: "api-produtos:/opt/apps/api-produtos/app.jar:/etc/systemd/system/api-produtos.service"
+#
+SPRINGBOOT_APPS=(
+    "api-produtos:/opt/apps/api-produtos:/etc/systemd/system/api-produtos.service"
+    "api-usuarios:/opt/apps/api-usuarios:/etc/systemd/system/api-usuarios.service"
+    "api-pedidos:/opt/apps/api-pedidos:/etc/systemd/system/api-pedidos.service"
+)
+
+SPRINGBOOT_CONFIG_DIRS="/opt/apps/config"
+
+# ============================================================================
+# APACHE TOMCAT 9
+# ============================================================================
+
+BACKUP_TOMCAT=true
+TOMCAT_HOME="/opt/tomcat9"
+
+# Fazer backup das webapps do Tomcat? (true/false)
+# true  = Backup completo (tudo exceto logs, work, temp)
+# false = Backup SEM webapps (tudo exceto logs, work, temp e webapps)
+TOMCAT_BACKUP_WEBAPPS=true
+
+BACKUP_TOMCAT_LOGS=false
+
+# ============================================================================
+# APLICAÇÕES NODE.JS (PM2)
+# ============================================================================
+
+BACKUP_NODEJS=true
+
+NODEJS_APPS=(
+    "api-websocket:/opt/nodejs/api-websocket"
+    "app-dashboard:/opt/nodejs/app-dashboard"
+)
+
+BACKUP_PM2_CONFIG=true
+PM2_USER="root"
+
+# ============================================================================
+# APLICAÇÕES ESTÁTICAS (HTML/CSS/JS)
+# ============================================================================
+
+BACKUP_STATIC_APPS=true
+
+STATIC_APPS_DIRS=(
+    "/var/www/html/site-institucional"
+    "/var/www/html/landing-pages"
+    "/var/www/html/blog"
+)
+
+# ============================================================================
+# NGINX
+# ============================================================================
+
+BACKUP_NGINX=true
+NGINX_CONFIG_DIR="/etc/nginx"
+BACKUP_NGINX_LOGS=false
+BACKUP_SSL_CERTS=true
+SSL_CERTS_DIR="/etc/letsencrypt"
+
+# ============================================================================
+# CONFIGURAÇÕES ADICIONAIS
+# ============================================================================
+
+BACKUP_CRON=true
+BACKUP_SYSTEM_CONFIG=true
+ADDITIONAL_DIRS="/etc/php /opt/custom-configs"
+
+# ============================================================================
+# SCRIPTS CUSTOMIZADOS
+# ============================================================================
+
+BACKUP_CUSTOM_SCRIPTS=true
+CUSTOM_SCRIPTS_DIRS="/opt/scripts /root/scripts"
+BACKUP_SCRIPT_LOGS=false
+SCRIPT_LOGS_DIR="/var/log/scripts"
+
+# ============================================================================
+# BACKUP REMOTO (OPCIONAL)
+# ============================================================================
+
+REMOTE_BACKUP=false
+REMOTE_USER="backup"
+REMOTE_HOST="backup.empresa.com"
+REMOTE_PATH="/backups/vps-producao"
+REMOTE_SSH_KEY="/root/.ssh/id_rsa_backup"
+
+# ============================================================================
+# BACKUP PARA S3 VIA RCLONE
+# ============================================================================
+
+S3_BACKUP=true
+RCLONE_REMOTE="s3"
+S3_BUCKET="empresa-backups"
+S3_PATH="vps-producao"
+S3_RETENTION_COUNT=15
+
+# ============================================================================
+# FIM DA CONFIGURAÇÃO
+# ============================================================================

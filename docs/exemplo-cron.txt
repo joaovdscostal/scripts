@@ -1,0 +1,89 @@
+# ============================================================================
+# EXEMPLOS DE CONFIGURAÇÃO CRON PARA O SISTEMA DE BACKUP VPS
+# ============================================================================
+#
+# Para editar o crontab: crontab -e
+# Para listar tarefas: crontab -l
+#
+# Formato do cron:
+# ┌───────────── minuto (0 - 59)
+# │ ┌───────────── hora (0 - 23)
+# │ │ ┌───────────── dia do mês (1 - 31)
+# │ │ │ ┌───────────── mês (1 - 12)
+# │ │ │ │ ┌───────────── dia da semana (0 - 6) (Domingo=0)
+# │ │ │ │ │
+# * * * * * comando a ser executado
+#
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# EXEMPLO 1: Backup completo diário às 2:00 AM
+# ----------------------------------------------------------------------------
+0 2 * * * /root/scripts/vps-backup/backup-vps.sh
+
+# ----------------------------------------------------------------------------
+# EXEMPLO 2: Backup de banco de dados a cada 6 horas
+# ----------------------------------------------------------------------------
+0 */6 * * * BACKUP_MODE="database" /root/scripts/vps-backup/backup-vps.sh
+
+# ----------------------------------------------------------------------------
+# EXEMPLO 3: Backup de infraestrutura (sem banco) uma vez por semana (domingo às 3:00 AM)
+# ----------------------------------------------------------------------------
+0 3 * * 0 BACKUP_MODE="infra" /root/scripts/vps-backup/backup-vps.sh
+
+# ----------------------------------------------------------------------------
+# EXEMPLO 4: Backup apenas das webapps do Tomcat todos os dias às 23:00
+# ----------------------------------------------------------------------------
+0 23 * * * BACKUP_MODE="webapps" /root/scripts/vps-backup/backup-vps.sh
+
+# ----------------------------------------------------------------------------
+# EXEMPLO 5: Backup completo sem notificações (útil para testes)
+# ----------------------------------------------------------------------------
+0 4 * * * SEND_WHATSAPP_NOTIFICATION=false /root/scripts/vps-backup/backup-vps.sh
+
+# ----------------------------------------------------------------------------
+# EXEMPLO 6: Múltiplos backups em horários diferentes
+# ----------------------------------------------------------------------------
+# Banco de dados a cada 4 horas
+0 */4 * * * BACKUP_MODE="database" /root/scripts/vps-backup/backup-vps.sh
+
+# Backup completo diário às 2:00 AM
+0 2 * * * BACKUP_MODE="full" /root/scripts/vps-backup/backup-vps.sh
+
+# Backup apenas de webapps às 18:00 (antes do horário de pico)
+0 18 * * * BACKUP_MODE="webapps" /root/scripts/vps-backup/backup-vps.sh
+
+# ============================================================================
+# IMPORTANTE: VISUALIZAR LOGS
+# ============================================================================
+#
+# Para verificar o log do último backup executado via cron:
+#   cat /root/backups/ultimo_backup.log
+#
+# Para verificar o log de um backup específico:
+#   cat /root/backups/[DATA]/backup.log
+#
+# Para verificar os logs do cron do sistema:
+#   tail -f /var/log/syslog | grep CRON
+#
+# ============================================================================
+# DICAS ADICIONAIS
+# ============================================================================
+#
+# 1. TESTAR ANTES DE ADICIONAR AO CRON:
+#    Execute o script manualmente primeiro para verificar se está funcionando
+#
+# 2. VERIFICAR ESPAÇO EM DISCO:
+#    Configure BACKUP_RETENTION_DAYS no backup.conf para evitar ficar sem espaço
+#
+# 3. MONITORAR NOTIFICAÇÕES:
+#    Você receberá mensagens no WhatsApp configurado em caso de sucesso ou erro
+#
+# 4. DESABILITAR NOTIFICAÇÕES TEMPORARIAMENTE:
+#    Adicione SEND_WHATSAPP_NOTIFICATION=false antes do comando no cron
+#
+# 5. BACKUP REMOTO/S3:
+#    Configure REMOTE_BACKUP=true ou S3_BACKUP=true no backup.conf
+#    para enviar backups automaticamente para servidores remotos ou S3
+#
+# ============================================================================
