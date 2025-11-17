@@ -353,8 +353,9 @@ echo "  [8] Apenas Node.js"
 echo "  [9] Apenas aplicações estáticas"
 echo "  [10] Apenas Nginx"
 echo "  [11] Apenas scripts customizados"
+echo "  [12] Apenas repositórios git"
 echo ""
-echo "  [12] Personalizado (escolher componentes)"
+echo "  [13] Personalizado (escolher componentes)"
 echo ""
 read -p "Opção: " RESTORE_OPTION
 
@@ -366,6 +367,7 @@ RESTORE_NODEJS=false
 RESTORE_STATIC=false
 RESTORE_NGINX=false
 RESTORE_SCRIPTS=false
+RESTORE_GIT_REPOS=false
 
 case $RESTORE_OPTION in
     1)
@@ -377,6 +379,7 @@ case $RESTORE_OPTION in
         RESTORE_STATIC=true
         RESTORE_NGINX=true
         RESTORE_SCRIPTS=true
+        RESTORE_GIT_REPOS=true
         ;;
     2)
         # Tudo exceto banco
@@ -387,6 +390,7 @@ case $RESTORE_OPTION in
         RESTORE_STATIC=true
         RESTORE_NGINX=true
         RESTORE_SCRIPTS=true
+        RESTORE_GIT_REPOS=true
         ;;
     3)
         # Infraestrutura (sem banco e sem webapps)
@@ -397,6 +401,7 @@ case $RESTORE_OPTION in
         RESTORE_STATIC=true
         RESTORE_NGINX=true
         RESTORE_SCRIPTS=true
+        RESTORE_GIT_REPOS=true
         # Flag para indicar que deve restaurar Tomcat mas sem webapps
         RESTORE_TOMCAT_SKIP_WEBAPPS=true
         ;;
@@ -416,7 +421,8 @@ case $RESTORE_OPTION in
     9) RESTORE_STATIC=true ;;
     10) RESTORE_NGINX=true ;;
     11) RESTORE_SCRIPTS=true ;;
-    12)
+    12) RESTORE_GIT_REPOS=true ;;
+    13)
         read -p "Restaurar banco de dados? (S/N): " -n 1 -r; echo; [[ $REPLY =~ ^[Ss]$ ]] && RESTORE_DB=true
         read -p "Restaurar Spring Boot? (S/N): " -n 1 -r; echo; [[ $REPLY =~ ^[Ss]$ ]] && RESTORE_SPRINGBOOT=true
         read -p "Restaurar Tomcat? (S/N): " -n 1 -r; echo; [[ $REPLY =~ ^[Ss]$ ]] && RESTORE_TOMCAT=true
@@ -427,6 +433,7 @@ case $RESTORE_OPTION in
         read -p "Restaurar aplicações estáticas? (S/N): " -n 1 -r; echo; [[ $REPLY =~ ^[Ss]$ ]] && RESTORE_STATIC=true
         read -p "Restaurar Nginx? (S/N): " -n 1 -r; echo; [[ $REPLY =~ ^[Ss]$ ]] && RESTORE_NGINX=true
         read -p "Restaurar scripts? (S/N): " -n 1 -r; echo; [[ $REPLY =~ ^[Ss]$ ]] && RESTORE_SCRIPTS=true
+        read -p "Restaurar repositórios git? (S/N): " -n 1 -r; echo; [[ $REPLY =~ ^[Ss]$ ]] && RESTORE_GIT_REPOS=true
         ;;
     *)
         log_error "Opção inválida"
@@ -893,6 +900,55 @@ if [ "$RESTORE_SCRIPTS" = true ] && [ -d "${BACKUP_DIR}/system/scripts" ]; then
 fi
 
 # ============================================================================
+# RESTORE REPOSITÓRIOS GIT
+# ============================================================================
+
+if [ "$RESTORE_GIT_REPOS" = true ] && [ -d "${BACKUP_DIR}/git-repos" ]; then
+    log_info "=========================================="
+    log_info "RESTORE DE REPOSITÓRIOS GIT"
+    log_info "=========================================="
+
+    read -p "Diretório de destino para repositórios git [/root/repositorio]: " GIT_RESTORE_DIR
+    GIT_RESTORE_DIR=${GIT_RESTORE_DIR:-/root/repositorio}
+
+    mkdir -p "$GIT_RESTORE_DIR"
+
+    REPOS_RESTORED=0
+
+    for REPO_DIR in "${BACKUP_DIR}/git-repos/"*; do
+        [ -d "$REPO_DIR" ] || continue
+
+        REPO_NAME=$(basename "$REPO_DIR")
+        log_info "Restaurando repositório: $REPO_NAME"
+
+        TARGET_PATH="${GIT_RESTORE_DIR}/${REPO_NAME}"
+
+        # Verificar se já existe
+        if [ -d "$TARGET_PATH" ]; then
+            log_warning "  Repositório já existe: $TARGET_PATH"
+            read -p "  Deseja sobrescrever? (S/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+                log_info "  Pulando $REPO_NAME"
+                continue
+            fi
+            rm -rf "$TARGET_PATH"
+        fi
+
+        # Copiar repositório
+        cp -r "$REPO_DIR" "$TARGET_PATH"
+        REPOS_RESTORED=$((REPOS_RESTORED + 1))
+        log_success "  $REPO_NAME restaurado"
+    done
+
+    if [ $REPOS_RESTORED -eq 0 ]; then
+        log_warning "Nenhum repositório foi restaurado"
+    else
+        log_success "Restore de $REPOS_RESTORED repositório(s) git concluído"
+    fi
+fi
+
+# ============================================================================
 # LIMPEZA
 # ============================================================================
 
@@ -917,6 +973,7 @@ if [ "$SEND_WHATSAPP_NOTIFICATION" = true ]; then
     [ "$RESTORE_STATIC" = true ] && RESTORED_COMPONENTS="${RESTORED_COMPONENTS}✓ Apps Estáticas\n"
     [ "$RESTORE_NGINX" = true ] && RESTORED_COMPONENTS="${RESTORED_COMPONENTS}✓ Nginx\n"
     [ "$RESTORE_SCRIPTS" = true ] && RESTORED_COMPONENTS="${RESTORED_COMPONENTS}✓ Scripts\n"
+    [ "$RESTORE_GIT_REPOS" = true ] && RESTORED_COMPONENTS="${RESTORED_COMPONENTS}✓ Repositórios Git\n"
 
     NOTIFICATION_MESSAGE="🔄 *Restore VPS Concluído*\n\n📅 Data: $(date '+%d/%m/%Y %H:%M:%S')\n📦 Backup: $(basename "$BACKUP_SOURCE")\n📝 Log: ${RESTORE_LOG}\n\n🔧 *Componentes Restaurados:*\n${RESTORED_COMPONENTS}\n✅ Status: Sucesso"
 

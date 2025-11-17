@@ -752,6 +752,41 @@ if [ "$BACKUP_CUSTOM_SCRIPTS" = true ]; then
 fi
 
 # ============================================================================
+# BACKUP DE REPOSITÓRIOS GIT
+# ============================================================================
+
+if [ "$BACKUP_GIT_REPOS" = true ] && [ ${#GIT_REPOS[@]} -gt 0 ]; then
+    log_info "Iniciando backup de repositórios git..."
+
+    GIT_BACKUP_DIR="${BACKUP_DIR}/git-repos"
+    mkdir -p "$GIT_BACKUP_DIR"
+
+    REPOS_FOUND=0
+
+    for REPO in "${GIT_REPOS[@]}"; do
+        # Pular comentários (linhas que começam com #)
+        [[ "$REPO" =~ ^#.*$ ]] && continue
+
+        REPO_PATH="${GIT_REPOS_DIR}/${REPO}"
+
+        if [ -d "$REPO_PATH" ]; then
+            log_info "Copiando repositório: $REPO"
+            cp -r "$REPO_PATH" "$GIT_BACKUP_DIR/"
+            REPOS_FOUND=$((REPOS_FOUND + 1))
+            log_success "  $REPO copiado"
+        else
+            log_warning "Repositório não encontrado: $REPO_PATH"
+        fi
+    done
+
+    if [ $REPOS_FOUND -eq 0 ]; then
+        log_warning "Nenhum repositório git encontrado"
+    else
+        log_success "Backup de $REPOS_FOUND repositório(s) git concluído"
+    fi
+fi
+
+# ============================================================================
 # BACKUP DE DIRETÓRIOS ADICIONAIS
 # ============================================================================
 

@@ -4,13 +4,15 @@ projetos=(
     "code-erp|producao|producao|main"
     "multt|producao|producao|main"
 	"route-365|producao|producao|main"
-    "contabil|producao|producao|main"
+    "contabil|producao|producao|master"
     "poker|producao|servidor-poker|master"
     "emprestimo|producao|producao|main"
     "cidadania|homologacao|testes|master"
     "cidadania|producao|servidor-cidadania|master"
     "codetech|producao|producao|master"
     "epubliq|producao|producao|main"
+    "formeseguro|producao|producao|main"
+    "clubearte|producao|producao|main"
 )
 
 buscar_projeto() {
