@@ -288,21 +288,26 @@ if [ $# -lt 1 ]; then
 
         echo ""
         echo "[INFO] Backup selecionado: $SELECTED_BACKUP"
-        echo "[INFO] Baixando do S3..."
+        echo "[INFO] Baixando do S3 para: $BACKUP_ROOT"
         echo ""
 
-        # Baixar backup do S3
-        DOWNLOAD_DIR="/tmp/restore-download-$(date +%s)"
-        mkdir -p "$DOWNLOAD_DIR"
+        # Criar diretório de backups locais se não existir
+        mkdir -p "$BACKUP_ROOT"
 
-        if rclone copy "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/${SELECTED_BACKUP}" "$DOWNLOAD_DIR" --progress; then
-            BACKUP_SOURCE="$DOWNLOAD_DIR/$SELECTED_BACKUP"
-            echo "[OK] Backup baixado com sucesso!"
-            echo ""
+        # Verificar se já existe localmente (evitar baixar de novo)
+        if [ -f "$BACKUP_ROOT/$SELECTED_BACKUP" ]; then
+            echo "[INFO] Arquivo já existe localmente, usando cache."
+            BACKUP_SOURCE="$BACKUP_ROOT/$SELECTED_BACKUP"
         else
-            echo "[ERRO] Falha ao baixar backup do S3"
-            rm -rf "$DOWNLOAD_DIR"
-            exit 1
+            # Baixar backup do S3 para o diretório de dados
+            if rclone copy "${RCLONE_REMOTE}:${S3_BUCKET}/${S3_PATH}/${SELECTED_BACKUP}" "$BACKUP_ROOT" --progress; then
+                BACKUP_SOURCE="$BACKUP_ROOT/$SELECTED_BACKUP"
+                echo ""
+                echo "[OK] Backup baixado e salvo em: $BACKUP_SOURCE"
+            else
+                echo "[ERRO] Falha ao baixar backup do S3"
+                exit 1
+            fi
         fi
     fi
 else
