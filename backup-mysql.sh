@@ -44,8 +44,8 @@ fi
 
 if [ $origem != "producao" ]  && [ $origem != "poker" ]  && [ $origem != "jhonata" ] && 
     [ $origem != "formeseguro" ] &&
- [ $origem != "localhost" ] && [ $origem != "testes" ] &&  [ $origem != "servidor-cidadania" ]; then
-    echo "Origem inválida! Permitida: producao, jhonata, poker, formeseguro, testes, servidor-cidadania ou localhost"
+ [ $origem != "localhost" ] && [ $origem != "testes" ] && [ $origem != "bu-homolog" ] &&  [ $origem != "servidor-cidadania" ]; then
+    echo "Origem inválida! Permitida: producao, jhonata, poker, formeseguro, testes, servidor-cidadania, bu-homolog ou localhost"
     exit 1
 fi
 
@@ -93,6 +93,14 @@ if [ $origem == "formeseguro" ]; then
     usuarioorigem='formeseguro'
     senhaorigem='sr8x-vGzSeg'
 fi
+
+if [ $origem == "bu-homolog" ]; then
+    servidororigem='dbmysg-homologacao.ca6icfds8q4p.us-east-1.rds.amazonaws.com'
+    usuarioorigem='root'
+    senhaorigem='SGMyDb.3427#'
+fi
+
+
 
 
 

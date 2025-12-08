@@ -1,0 +1,189 @@
+# ==========================================
+# TEMPLATE GITHUB ACTIONS - DEPLOY API SPRING BOOT
+# ==========================================
+#
+# Como usar este template:
+#
+# 1. Copiar este arquivo para: .github/workflows/deploy-producao.yml
+# 2. Substituir as variáveis abaixo com os valores da sua API
+# 3. Configurar o secret SSH_PRIVATE_KEY no GitHub
+# 4. Fazer commit e push
+#
+# ==========================================
+
+name: Deploy API Produção
+
+on:
+  push:
+    branches:
+      - main  # OU master - verificar qual é a branch principal
+  workflow_dispatch:
+
+env:
+  # ====================================
+  # ⬇️ CONFIGURAR ESTAS VARIÁVEIS ⬇️
+  # ====================================
+
+  PROJECT_NAME: NOME_DA_API              # Ex: dimensao-api, multt-api
+  SERVER_HOST: api.seudominio.com.br     # Ex: api.vipp.art.br
+  SERVER_USER: root                       # Usuário SSH (geralmente root)
+  SERVER_PATH: /root/apis/NOME_DA_API    # Caminho da API no servidor
+  SERVICE_NAME: NOME_DA_API              # Nome do serviço systemd
+  JAR_NAME: NOME_DA_API-0.0.1-SNAPSHOT.jar  # Nome do JAR gerado
+  JAVA_VERSION: '17'                     # Versão do Java (11, 17, 21)
+
+  # ====================================
+  # ⬆️ FIM DAS CONFIGURAÇÕES ⬆️
+  # ====================================
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ler versão
+        id: version
+        run: |
+          VERSION=$(grep -oP 'api.version=\K.*' src/main/resources/application.properties || echo "1.0.0")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=api-$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Versão: $VERSION"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: Compilar projeto
+        run: |
+          echo "🔨 Compilando..."
+          mvn clean package -DskipTests
+
+          if [ ! -f "target/${{ env.JAR_NAME }}" ]; then
+            echo "❌ JAR não gerado"
+            exit 1
+          fi
+
+          echo "✅ Compilação OK"
+
+      - name: Criar tag
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -d $TAG 2>/dev/null || true
+          git push origin :refs/tags/$TAG 2>/dev/null || true
+          git tag -a $TAG -m "Release $TAG - $(date +"%d-%m-%Y")"
+          git push origin $TAG
+
+      - name: Configurar SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Backup no servidor
+        run: |
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+            BACKUP_DIR="/root/backups/${{ env.PROJECT_NAME }}"
+            mkdir -p $BACKUP_DIR
+            DATE=$(date +"%Y%m%d_%H%M%S")
+
+            if [ -f "${{ env.SERVER_PATH }}/target/${{ env.JAR_NAME }}" ]; then
+              cp ${{ env.SERVER_PATH }}/target/${{ env.JAR_NAME }} \
+                 $BACKUP_DIR/backup_$DATE.jar
+              cd $BACKUP_DIR
+              ls -t backup_*.jar | tail -n +6 | xargs -r rm
+              echo "✅ Backup criado"
+            fi
+ENDSSH
+
+      - name: Parar serviço
+        run: |
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+            sudo systemctl stop ${{ env.SERVICE_NAME }} || true
+
+            for i in {1..30}; do
+              if ! systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+                echo "✅ Serviço parado"
+                exit 0
+              fi
+              sleep 1
+            done
+
+            pkill -9 -f "${{ env.JAR_NAME }}" || true
+ENDSSH
+
+      - name: Deploy via Git Pull
+        run: |
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+            cd ${{ env.SERVER_PATH }}
+
+            # Git pull
+            git fetch --all
+            git reset --hard origin/main
+            git pull origin main
+
+            # Limpa e compila
+            rm -rf target
+            export JAVA_HOME=/root/.sdkman/candidates/java/17.0.15-amzn
+            export PATH=$JAVA_HOME/bin:$PATH
+            mvn clean package -DskipTests
+
+            if [ ! -f "target/${{ env.JAR_NAME }}" ]; then
+              echo "❌ Erro na compilação"
+              exit 1
+            fi
+
+            echo "✅ Deploy OK"
+ENDSSH
+
+      - name: Iniciar serviço
+        run: |
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+            sudo systemctl start ${{ env.SERVICE_NAME }}
+
+            for i in {1..60}; do
+              if systemctl is-active --quiet ${{ env.SERVICE_NAME }}; then
+                echo "✅ Serviço iniciado!"
+                sudo journalctl -u ${{ env.SERVICE_NAME }} -n 20 --no-pager
+                exit 0
+              fi
+
+              if systemctl is-failed --quiet ${{ env.SERVICE_NAME }}; then
+                echo "❌ Falha ao iniciar"
+                sudo journalctl -u ${{ env.SERVICE_NAME }} -n 50 --no-pager
+                exit 1
+              fi
+
+              sleep 1
+            done
+
+            echo "⚠️ Timeout"
+            exit 1
+ENDSSH
+
+      - name: Verificar API
+        run: |
+          sleep 10
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.SERVER_HOST }}/actuator/health || echo "000")
+
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ API OK (HTTP $HTTP_CODE)"
+          else
+            echo "⚠️ HTTP $HTTP_CODE"
+          fi
+
+      - name: Sucesso
+        if: success()
+        run: |
+          echo "✅ Deploy v${{ steps.version.outputs.version }} concluído!"
+          echo "🌐 https://${{ env.SERVER_HOST }}/"
