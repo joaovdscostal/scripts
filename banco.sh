@@ -45,6 +45,14 @@ if ! command -v jq &> /dev/null; then
     error "jq não está instalado. Instale com: brew install jq"
 fi
 
+# Verificar se pv está instalado (para barra de progresso)
+PV_AVAILABLE=false
+if command -v pv &> /dev/null; then
+    PV_AVAILABLE=true
+else
+    warning "pv não está instalado. Instale com: brew install pv (para barra de progresso)"
+fi
+
 # Verificar se arquivo de config existe
 if [ ! -f "$CONFIG_FILE" ]; then
     error "Arquivo de configuração não encontrado: $CONFIG_FILE"
@@ -304,14 +312,24 @@ if [ $# -lt 1 ]; then
         info "Usuário:  $usuariodestino"
         echo ""
 
-        $mysql $portadestino -h "$servidordestino" -u "$usuariodestino" -p"$senhadestino" "$basededadosdestino" < "$ARQUIVO_RESTORE" 2>/tmp/restore_error.txt &
-        RESTORE_PID=$!
-        spinner $RESTORE_PID "Restaurando '$basededadosdestino'"
-        wait $RESTORE_PID
-        RESTORE_EXIT_CODE=$?
+        if [ "$PV_AVAILABLE" = true ]; then
+            # Com barra de progresso
+            step "Restaurando com barra de progresso..."
+            echo ""
+            pv "$ARQUIVO_RESTORE" | $mysql $portadestino -h "$servidordestino" -u "$usuariodestino" -p"$senhadestino" "$basededadosdestino" 2>/tmp/restore_error.txt
+            RESTORE_EXIT_CODE=$?
+        else
+            # Sem pv - usar spinner
+            $mysql $portadestino -h "$servidordestino" -u "$usuariodestino" -p"$senhadestino" "$basededadosdestino" < "$ARQUIVO_RESTORE" 2>/tmp/restore_error.txt &
+            RESTORE_PID=$!
+            spinner $RESTORE_PID "Restaurando '$basededadosdestino'"
+            wait $RESTORE_PID
+            RESTORE_EXIT_CODE=$?
+        fi
 
         if [ $RESTORE_EXIT_CODE -ne 0 ]; then
             RESTORE_ERROR=$(cat /tmp/restore_error.txt 2>/dev/null)
+            echo ""
             echo -e "${RED}Erro do mysql:${NC}"
             echo "$RESTORE_ERROR"
             error "Falha na restauração do banco de dados"
@@ -757,15 +775,25 @@ info "Servidor: $servidordestino"
 info "Usuário:  $usuariodestino"
 echo ""
 
-# Executar restore em background com spinner
-$mysql $portadestino -h "$servidordestino" -u "$usuariodestino" -p"$senhadestino" "$basededadosdestino" < "$arquivosql" 2>/tmp/restore_error.txt &
-RESTORE_PID=$!
-spinner $RESTORE_PID "Restaurando '$basededadosdestino'"
-wait $RESTORE_PID
-RESTORE_EXIT_CODE=$?
+# Executar restore com pv (se disponível) ou spinner
+if [ "$PV_AVAILABLE" = true ]; then
+    # Com barra de progresso
+    step "Restaurando com barra de progresso..."
+    echo ""
+    pv "$arquivosql" | $mysql $portadestino -h "$servidordestino" -u "$usuariodestino" -p"$senhadestino" "$basededadosdestino" 2>/tmp/restore_error.txt
+    RESTORE_EXIT_CODE=$?
+else
+    # Sem pv - usar spinner
+    $mysql $portadestino -h "$servidordestino" -u "$usuariodestino" -p"$senhadestino" "$basededadosdestino" < "$arquivosql" 2>/tmp/restore_error.txt &
+    RESTORE_PID=$!
+    spinner $RESTORE_PID "Restaurando '$basededadosdestino'"
+    wait $RESTORE_PID
+    RESTORE_EXIT_CODE=$?
+fi
 
 if [ $RESTORE_EXIT_CODE -ne 0 ]; then
     RESTORE_ERROR=$(cat /tmp/restore_error.txt 2>/dev/null)
+    echo ""
     echo -e "${RED}Erro do mysql:${NC}"
     echo "$RESTORE_ERROR"
     error "Falha na restauração do banco de dados"
